@@ -159,26 +159,79 @@ function standings(matches) {
 }
 
 /* ============ ELO ============ */
-/** Týmové ELO: tým = průměr hráčů; výhra větším rozdílem dá víc (0,83× při 11:10 … 2× při 18:3). */
+/* Bonusy (nikdy se neodečítají, NEvstupují do šancí na výhru):
+   účast +10 a pořadí večera 1.–4. +12/+8/+4/0 → po ukončení večera (při shodě výher i bodů se dělí),
+   série +5 za každých 5 výher v řadě (i přes více večerů), +5 hráčům týmu, který v zápase uhraje 15+ míčků. */
+const BONUS = { ucast: 10, poradi: [12, 8, 4, 0], serie: 5, serieKazdych: 5, body15: 5, body15Min: 15 };
+const BONUS_LABEL = { ucast: '🎟️ účast', poradi: '🏅 pořadí', serie: '🔥 série 5 výher', body15: '💥 15+ míčků' };
+const emptyBonus = () => ({ ucast: 0, poradi: 0, serie: 0, body15: 0 });
+const fmtBonus = (v) => (Number.isInteger(v) ? String(v) : dec(v));
+function bonusChips(b) {
+  return Object.keys(BONUS_LABEL).filter((k) => b[k]).map((k) => `<span class="chip">${BONUS_LABEL[k]} +${fmtBonus(b[k])}</span>`).join('');
+}
+const bonusSum = (b) => b.ucast + b.poradi + b.serie + b.body15;
+/** Bonus za pořadí večera; hráči se shodnými výhrami i body si bonusy svých míst rozdělí. */
+function placementBonus(st) {
+  const out = {};
+  for (let i = 0; i < st.length;) {
+    let j = i;
+    while (j + 1 < st.length && st[j + 1].wins === st[i].wins && st[j + 1].points === st[i].points) j++;
+    const share = BONUS.poradi.slice(i, j + 1).reduce((s, x) => s + x, 0) / (j - i + 1);
+    for (let k = i; k <= j; k++) out[st[k].name] = share;
+    i = j + 1;
+  }
+  return out;
+}
+
+/** Týmové ELO ze zápasů: tým = průměr hráčů; výhra větším rozdílem dá víc (0,83× při 11:10 … 2× při 18:3).
+ *  rating = čisté ELO ze zápasů (z něj se počítají šance), total = ELO + bonusy (zobrazuje se všude). */
 function computeElo(all) {
   const rating = Object.fromEntries(PLAYERS.map((p) => [p, ELO_START]));
+  const bonus = Object.fromEntries(PLAYERS.map((p) => [p, emptyBonus()]));
   const hist = Object.fromEntries(PLAYERS.map((p) => [p, [ELO_START]]));
-  const perSession = {};
-  const probs = new Map(); // id zápasu → šance týmu A na výhru PŘED zápasem
+  const perSession = {}; // změna celkem (zápasy + bonusy) za večer
+  const sessionBonus = {}; // id večera → hráč → rozpis bonusů
+  const probs = new Map(); // id zápasu → šance týmu A na výhru PŘED zápasem (jen z čistého ELO)
+  const streak = Object.fromEntries(PLAYERS.map((p) => [p, 0]));
+  const tot = (p) => rating[p] + bonusSum(bonus[p]);
+  const give = (sid, p, kind, v) => {
+    if (!v) return;
+    bonus[p][kind] += v;
+    ((sessionBonus[sid] ||= Object.fromEntries(PLAYERS.map((q) => [q, emptyBonus()])))[p])[kind] += v;
+    perSession[sid][p] += v;
+  };
+  const closeEvening = (sid, ms) => {
+    const s = sessionById(sid);
+    if (!s || !s.finished || !ms.length) return;
+    const pb = placementBonus(standings(ms));
+    PLAYERS.forEach((p) => { give(sid, p, 'ucast', BONUS.ucast); give(sid, p, 'poradi', pb[p] || 0); });
+    PLAYERS.forEach((p) => { hist[p][hist[p].length - 1] = tot(p); });
+  };
+  let curSid = null; let curMs = [];
   all.forEach((m) => {
     if (![...m.team_a, ...m.team_b].every((p) => p in rating)) return;
+    if (!sameId(m.session_id, curSid)) { if (curSid !== null) closeEvening(curSid, curMs); curSid = m.session_id; curMs = []; }
+    curMs.push(m);
+    const sid = m.session_id;
+    perSession[sid] ||= Object.fromEntries(PLAYERS.map((p) => [p, 0]));
     const ea = winProb(rating, m.team_a, m.team_b);
     probs.set(String(m.id), ea);
     const sa = m.score_a > m.score_b ? 1 : 0;
     const mult = 0.75 + Math.abs(m.score_a - m.score_b) / 12;
     const d = ELO_K * mult * (sa - ea);
-    const ps = (perSession[m.session_id] ||= Object.fromEntries(PLAYERS.map((p) => [p, 0])));
-    m.team_a.forEach((p) => { rating[p] += d; ps[p] += d; });
-    m.team_b.forEach((p) => { rating[p] -= d; ps[p] -= d; });
-    PLAYERS.forEach((p) => hist[p].push(rating[p]));
+    m.team_a.forEach((p) => { rating[p] += d; perSession[sid][p] += d; });
+    m.team_b.forEach((p) => { rating[p] -= d; perSession[sid][p] -= d; });
+    const winners = sa ? m.team_a : m.team_b;
+    PLAYERS.forEach((p) => {
+      if (winners.includes(p)) { streak[p]++; if (streak[p] % BONUS.serieKazdych === 0) give(sid, p, 'serie', BONUS.serie); } else if (m.team_a.includes(p) || m.team_b.includes(p)) streak[p] = 0;
+    });
+    if (Math.max(m.score_a, m.score_b) >= BONUS.body15Min) winners.forEach((p) => give(sid, p, 'body15', BONUS.body15));
+    PLAYERS.forEach((p) => hist[p].push(tot(p)));
   });
-  const ranked = [...PLAYERS].sort((a, b) => rating[b] - rating[a]);
-  return { rating, hist, perSession, ranked, probs };
+  if (curSid !== null) closeEvening(curSid, curMs);
+  const total = Object.fromEntries(PLAYERS.map((p) => [p, tot(p)]));
+  const ranked = [...PLAYERS].sort((a, b) => total[b] - total[a]);
+  return { rating, total, bonus, hist, perSession, sessionBonus, ranked, probs };
 }
 /** Šance týmu A porazit tým B podle ELO (tým = průměr hráčů). */
 function winProb(rating, teamA, teamB) {
@@ -788,12 +841,19 @@ function renderSessionSheet() {
   const st = standings(ms);
   const elo = computeElo(chronoMatches().filter((m) => !m._pending));
   const deltas = elo.perSession[s.id];
+  const sb = elo.sessionBonus[s.id];
+  const bonusCard = ms.length ? `<div class="card"><div class="card-title"><span>Bonusy večera</span><span class="muted small">přičtené k ELO</span></div>
+      ${st.map((r) => { const b = sb ? sb[r.name] : emptyBonus(); return `<div class="bonus-row">${av(r.name, 22)}<b>${r.name}</b>
+        <span class="bonus-chips">${bonusChips(b) || '<span class="muted">–</span>'}</span><span class="bonus-sum">${bonusSum(b) ? '+' + fmtBonus(bonusSum(b)) : '0'}</span></div>`; }).join('')}
+      ${s.finished ? '' : '<p class="muted small ff-note">Účast a pořadí se připíšou po ukončení večera.</p>'}</div>` : '';
   el.sheetTitle.textContent = fmtLong(s.played_on);
   el.sheetSub.textContent = `${nZap(ms.length)}${s.finished ? '' : ' · probíhá'}${ms.length ? ` · vítěz ${st[0].name} 🏆` : ''}`;
   const canReopen = s.finished && !openSession();
   el.sheetBody.innerHTML = `
     <div class="card"><div class="card-title"><span>Tabulka večera</span><span class="muted small">klepni na hráče</span></div>
-      <table class="standings">${standingsTable(st, { clickable: true, elo: deltas })}</table></div>
+      <table class="standings">${standingsTable(st, { clickable: true, elo: deltas })}</table>
+      <p class="muted small ff-note">ELO = změna ze zápasů + bonusy večera.</p></div>
+    ${bonusCard}
     ${ms.length ? '<button type="button" class="btn-share" id="shareBtn">📤 Sdílet výsledky do Messengeru</button>' : ''}
     <div class="card"><div class="card-title"><span>Zápasy</span><span class="muted small">klepni pro úpravu</span></div>
       <div class="match-list">${ms.length ? ms.map((m) => matchRow(m, { editable: true })).join('') : '<p class="empty">Žádné zápasy.</p>'}</div></div>
@@ -864,7 +924,7 @@ function renderStats() {
   ].map(([v, l, acc]) => `<div class="kpi ${acc ? 'accent' : ''}"><div class="kpi-val">${v.toLocaleString('cs-CZ')}</div><div class="kpi-lbl">${l}</div></div>`).join('');
 
   el.playerStrip.innerHTML = elo.ranked.map((p) => `<button type="button" class="pcard" data-player="${SLUG[p]}">
-      ${av(p, 56)}<div class="pc-name">${p}</div><div class="pc-elo">${Math.round(elo.rating[p])}</div></button>`).join('');
+      ${av(p, 56)}<div class="pc-name">${p}</div><div class="pc-elo">${Math.round(elo.total[p])}</div></button>`).join('');
 
   if (!all.length) {
     el.overallTable.innerHTML = '<tbody><tr><td class="empty">Zatím žádná data.</td></tr></tbody>';
@@ -877,7 +937,7 @@ function renderStats() {
   el.overallTable.innerHTML = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">V</th><th>%</th><th>Body</th><th>Ø</th><th title="Vyhrané večery">👑</th></tr></thead><tbody>` +
     overall.map((r, i) => `<tr class="tap ${any && i === 0 ? 'lead' : ''}" data-player="${SLUG[r.name]}">
       <td><span class="rank ${any && i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span></td>
-      <td class="name">${av(r.name, 24)}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.rating[r.name])}</small></span></td>
+      <td class="name">${av(r.name, 24)}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.total[r.name])}</small></span></td>
       <td class="dim">${r.played}</td>
       <td class="w">${r.wins}</td>
       <td class="dim">${pct(r.wins, r.played)}</td>
@@ -933,7 +993,7 @@ function renderStats() {
     ['Nejdelší série výher', longest.p, `${longest.v}×`],
     ['Má formu (zmrd) 🔥', hot ? `${hot} – aktuální série` : 'nikdo nemá sérii', hot ? `${current[hot].cur}×` : '–'],
     ['Král těsných zápasů', `${clutchKing} – výhry o 1 míček`, clutch[clutchKing]],
-    ['Nejvyšší ELO', elo.ranked[0], Math.round(elo.rating[elo.ranked[0]])],
+    ['Nejvyšší ELO', elo.ranked[0], Math.round(elo.total[elo.ranked[0]])],
   ];
   el.records.innerHTML = recs.map(([l, d, v]) => `<div class="rec"><div><div class="l">${l}</div><div class="d">${d}</div></div><div class="v">${v}</div></div>`).join('');
 
@@ -1022,7 +1082,7 @@ function renderPlayerSheet() {
   const { all, nightRows, elo } = computeStats();
   const pr = playerProfile(p, all, nightRows, elo);
   const lb = luckBalance(all, elo.probs)[p];
-  const rating = Math.round(elo.rating[p]);
+  const rating = Math.round(elo.total[p]);
   const eloRank = elo.ranked.indexOf(p) + 1;
   const lastNight = pr.nights[pr.nights.length - 1];
   el.sheetTitle.textContent = p;
@@ -1057,6 +1117,14 @@ function renderPlayerSheet() {
     <div class="kpis kpis-3 kpis-2">
       <div class="kpi"><div class="kpi-val ${upDown(lb.luck)}">${sdec(lb.luck)}</div><div class="kpi-lbl">🍀 štěstí · výhry nad očekávání ELO</div></div>
       <div class="kpi"><div class="kpi-val ${upDown(lb.bal)}">${signed(lb.bal)}</div><div class="kpi-lbl">⚖️ bilance · míčky získané − ztracené</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>Složení ELO</span><span class="muted small">zápasy + bonusy</span></div>
+      <div class="elo-split"><div><b>${Math.round(elo.rating[p])}</b><span>ze zápasů</span></div><i>+</i>
+        <div><b class="up">${fmtBonus(Math.round(bonusSum(elo.bonus[p]) * 10) / 10)}</b><span>bonusy</span></div><i>=</i>
+        <div><b>${rating}</b><span>ELO</span></div></div>
+      <div class="bonus-chips mt">${bonusChips(elo.bonus[p]) || '<span class="muted small">Zatím žádné bonusy.</span>'}</div>
     </div>
 
     <div class="card">
@@ -1314,7 +1382,7 @@ function drawShareImage(sid) {
   ctx.save(); ctx.translate(W / 2 + 108, 312); ctx.rotate(0.35); ctx.font = '84px sans-serif'; ctx.fillText('👑', 0, 0); ctx.restore();
   ctx.fillStyle = '#fff'; ctx.font = `italic 900 104px ${BC}`; ctx.fillText(win.name.toUpperCase(), W / 2, 640);
   ctx.fillStyle = '#cfdcec'; ctx.font = '600 32px Inter, sans-serif';
-  ctx.fillText(`${win.wins} výher · ${win.points} bodů · ELO ${Math.round(elo.rating[win.name])} (${signed(deltas[win.name] || 0)})`, W / 2, 690);
+  ctx.fillText(`${win.wins} výher · ${win.points} bodů · ELO ${Math.round(elo.total[win.name])} (${signed(deltas[win.name] || 0)})`, W / 2, 690);
 
   // tabulka
   const colV = 700; const colB = 850; const colE = 1005;

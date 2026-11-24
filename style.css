@@ -616,3 +616,16 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
   .fx * { animation: none !important; }
   .fx-smoke { display: none; }
 }
+
+/* Bonusy k ELO */
+.bonus-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 11px; font-weight: 600; color: var(--text-2); background: rgba(143,196,255,.1); border: 1px solid var(--line); border-radius: 99px; padding: 2px 7px; white-space: nowrap; }
+.bonus-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 0 2px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.bonus-row:first-of-type { border-top: 0; padding-top: 0; }
+.bonus-row > b { margin-right: 8px; }
+.bonus-row .bonus-sum { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; color: var(--ball); padding-left: 8px; }
+.elo-split { display: flex; align-items: center; justify-content: space-between; gap: 6px; text-align: center; }
+.elo-split > div { flex: 1; background: rgba(6,17,31,.45); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; }
+.elo-split b { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; line-height: 1; }
+.elo-split span { font-size: 11px; color: var(--text-2); }
+.elo-split > i { font-style: normal; color: var(--muted); font-weight: 700; }
