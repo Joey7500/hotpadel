@@ -37,6 +37,11 @@ create policy "open sessions" on public.sessions for all to anon, authenticated 
 drop policy if exists "open matches" on public.matches;
 create policy "open matches" on public.matches for all to anon, authenticated using (true) with check (true);
 
+-- Práva pro webovou aplikaci (nové Supabase projekty je nedávají automaticky)
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.sessions, public.matches to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
+
 -- Živé aktualizace mezi telefony
 do $$ begin
   alter publication supabase_realtime add table public.sessions, public.matches;
