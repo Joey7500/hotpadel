@@ -779,7 +779,7 @@ function renderStats() {
     ['Nejvíc bodů za večer', `${bestNightPts.p} · ${fmtShort(bestNightPts.d)}`, bestNightPts.v],
     ['Nejvíc výher za večer', `${bestNightWins.p} · ${fmtShort(bestNightWins.d)}`, bestNightWins.v],
     ['Nejdelší série výher', longest.p, `${longest.v}×`],
-    ['Je ve formě 🔥', hot ? `${hot} – aktuální série` : 'nikdo nemá sérii', hot ? `${current[hot].cur}×` : '–'],
+    ['Má formu (zmrd) 🔥', hot ? `${hot} – aktuální série` : 'nikdo nemá sérii', hot ? `${current[hot].cur}×` : '–'],
     ['Král těsných zápasů', `${clutchKing} – výhry o 1 míček`, clutch[clutchKing]],
     ['Nejvyšší ELO', elo.ranked[0], Math.round(elo.rating[elo.ranked[0]])],
   ];
