@@ -137,6 +137,30 @@ function confirmModal({ title, text, ok = 'Ano', danger = false }) {
   });
 }
 
+/** Zeptá se na PIN; vrátí zadaný text nebo null při zrušení. */
+function pinModal({ title, text, ok = 'Potvrdit', danger = true }) {
+  return new Promise((resolve) => {
+    openModal(`<h3>🔒 ${title}</h3><p>${text}</p>
+      <input id="pinInput" class="pin-input" type="password" autocomplete="off" autocapitalize="off" placeholder="PIN" aria-label="PIN">
+      <div class="modal-actions"><button class="btn sec" data-r="0">Zrušit</button><button class="btn ${danger ? 'red' : 'pri'}" data-r="1">${ok}</button></div>`,
+    (c) => {
+      const inp = c.querySelector('#pinInput');
+      setTimeout(() => inp.focus(), 50);
+      const done = (v) => { closeModal(); resolve(v); };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(inp.value); });
+      c.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => done(b.dataset.r === '1' ? inp.value : null)));
+    });
+  });
+}
+/** Zavolá chráněnou funkci v databázi; vrátí true při úspěchu. */
+async function adminCall(fn, args, pin) {
+  const { error } = await db.rpc(fn, { ...args, p_pin: pin });
+  if (!error) return true;
+  console.error(error);
+  toast(/WRONG_PIN/.test(error.message) ? 'Špatný PIN 🔒' : 'Nepovedlo se – zkus znovu.', true);
+  return false;
+}
+
 /* ============ NAČTENÍ DAT ============ */
 async function fetchAll(table) {
   const size = 1000; let from = 0; let out = [];
@@ -361,14 +385,16 @@ async function finishSession() {
 function openEditMatch(id) {
   const m = state.matches.find((x) => String(x.id) === String(id));
   if (!m) return;
+  const locked = sessionById(m.session_id).finished; // ukončený večer → změny jen s PINem
   openModal(`
-    <h3>Upravit zápas #${m.match_no}</h3>
-    <p>${fmtLong(sessionById(m.session_id).played_on)}</p>
+    <h3>${locked ? '🔒 ' : ''}Upravit zápas #${m.match_no}</h3>
+    <p>${fmtLong(sessionById(m.session_id).played_on)}${locked ? '<br>Večer je ukončený – úprava vyžaduje PIN.' : ''}</p>
     <div class="edit-scores">
       <div><div class="lbl">${m.team_a[0]} & ${m.team_a[1]}</div><input class="score-input" id="eA" type="number" inputmode="numeric" value="${m.score_a}"></div>
       <div class="muted" style="padding-top:18px;font-weight:800">:</div>
       <div><div class="lbl">${m.team_b[0]} & ${m.team_b[1]}</div><input class="score-input" id="eB" type="number" inputmode="numeric" value="${m.score_b}"></div>
     </div>
+    ${locked ? '<input id="ePin" class="pin-input" type="password" autocomplete="off" autocapitalize="off" placeholder="PIN" aria-label="PIN">' : ''}
     <div class="modal-actions"><button class="btn sec" id="eCancel">Zrušit</button><button class="btn pri" id="eSave">Uložit</button></div>
     <button class="link-danger" id="eDel">Smazat tento zápas</button>`, (c) => {
     const eA = c.querySelector('#eA'); const eB = c.querySelector('#eB');
@@ -380,16 +406,26 @@ function openEditMatch(id) {
     c.querySelector('#eSave').onclick = async () => {
       const a = parseInt(eA.value, 10); const b = parseInt(eB.value, 10);
       if (isNaN(a) || isNaN(b) || a + b !== TOTAL) { toast('Součet musí být 21.', true); return; }
+      const pin = locked ? c.querySelector('#ePin').value : null;
       closeModal();
-      const { error } = await db.from('matches').update({ score_a: a, score_b: b }).eq('id', m.id);
-      if (error) { toast('Uložení se nepovedlo.', true); return; }
+      if (locked) {
+        if (!(await adminCall('admin_update_match', { p_id: m.id, p_a: a, p_b: b }, pin))) return;
+      } else {
+        const { error } = await db.from('matches').update({ score_a: a, score_b: b }).eq('id', m.id);
+        if (error) { toast('Uložení se nepovedlo.', true); return; }
+      }
       m.score_a = a; m.score_b = b; renderAll(); toast('Zápas upraven');
     };
     c.querySelector('#eDel').onclick = async () => {
       closeModal();
-      if (!(await confirmModal({ title: `Smazat zápas #${m.match_no}?`, text: 'Zápas zmizí z výsledků i statistik.', ok: 'Smazat', danger: true }))) return;
-      const { error } = await db.from('matches').delete().eq('id', m.id);
-      if (error) { toast('Smazání se nepovedlo.', true); return; }
+      if (locked) {
+        const pin = await pinModal({ title: `Smazat zápas #${m.match_no}?`, text: 'Večer je ukončený. Zadej PIN pro smazání zápasu.', ok: 'Smazat' });
+        if (pin === null || !(await adminCall('admin_delete_match', { p_id: m.id }, pin))) return;
+      } else {
+        if (!(await confirmModal({ title: `Smazat zápas #${m.match_no}?`, text: 'Zápas zmizí z výsledků i statistik.', ok: 'Smazat', danger: true }))) return;
+        const { error } = await db.from('matches').delete().eq('id', m.id);
+        if (error) { toast('Smazání se nepovedlo.', true); return; }
+      }
       state.matches = state.matches.filter((x) => x !== m); renderAll(); toast('Zápas smazán');
     };
   });
@@ -432,19 +468,18 @@ function renderSheet() {
     <div class="card"><div class="card-title"><span>Zápasy</span><span class="muted small">klepni pro úpravu</span></div>
       <div class="match-list">${ms.length ? ms.map((m) => matchRow(m, { editable: !m._pending })).join('') : '<p class="empty">Žádné zápasy.</p>'}</div></div>
     <div class="row-2">
-      ${canReopen ? '<button type="button" class="btn-ghost ball" id="reopenBtn">Znovu otevřít</button>' : '<span></span>'}
-      <button type="button" class="btn-ghost danger" id="deleteSessionBtn">Smazat večer</button>
+      ${canReopen ? '<button type="button" class="btn-ghost ball" id="reopenBtn">🔒 Znovu otevřít</button>' : '<span></span>'}
+      <button type="button" class="btn-ghost danger" id="deleteSessionBtn">🔒 Smazat večer</button>
     </div>`;
   const r = $('reopenBtn');
   if (r) r.onclick = async () => {
-    const { error } = await db.from('sessions').update({ finished: false }).eq('id', s.id);
-    if (error) { toast('Nejde otevřít (už běží jiný večer?)', true); return; }
+    const pin = await pinModal({ title: 'Znovu otevřít večer?', text: 'Ukončený večer je chráněný. Zadej PIN.', ok: 'Otevřít', danger: false });
+    if (pin === null || !(await adminCall('admin_reopen_session', { p_id: s.id }, pin))) return;
     s.finished = false; toast('Večer znovu otevřen – pokračuj v záložce Hrát'); renderAll();
   };
   $('deleteSessionBtn').onclick = async () => {
-    if (!(await confirmModal({ title: 'Smazat celý večer?', text: `${fmtLong(s.played_on)} – ${ms.length} ${plural(ms.length, 'zápas', 'zápasy', 'zápasů')} se nenávratně smaže (zůstane jen v denní záloze).`, ok: 'Smazat', danger: true }))) return;
-    const { error } = await db.from('sessions').delete().eq('id', s.id);
-    if (error) { toast('Smazání se nepovedlo.', true); return; }
+    const pin = await pinModal({ title: 'Smazat celý večer?', text: `${fmtLong(s.played_on)} – ${ms.length} ${plural(ms.length, 'zápas', 'zápasy', 'zápasů')} se nenávratně smaže (zůstane jen v denní záloze). Zadej PIN.`, ok: 'Smazat' });
+    if (pin === null || !(await adminCall('admin_delete_session', { p_id: s.id }, pin))) return;
     state.sessions = state.sessions.filter((x) => x !== s);
     state.matches = state.matches.filter((m) => m.session_id !== s.id);
     toast('Večer smazán'); closeSheet(); renderAll();
