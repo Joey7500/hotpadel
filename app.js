@@ -115,11 +115,11 @@ function computeElo(all) {
   const rating = Object.fromEntries(PLAYERS.map((p) => [p, ELO_START]));
   const hist = Object.fromEntries(PLAYERS.map((p) => [p, [ELO_START]]));
   const perSession = {};
+  const probs = new Map(); // id zápasu → šance týmu A na výhru PŘED zápasem
   all.forEach((m) => {
     if (![...m.team_a, ...m.team_b].every((p) => p in rating)) return;
-    const ra = (rating[m.team_a[0]] + rating[m.team_a[1]]) / 2;
-    const rb = (rating[m.team_b[0]] + rating[m.team_b[1]]) / 2;
-    const ea = 1 / (1 + 10 ** ((rb - ra) / 400));
+    const ea = winProb(rating, m.team_a, m.team_b);
+    probs.set(String(m.id), ea);
     const sa = m.score_a > m.score_b ? 1 : 0;
     const mult = 0.75 + Math.abs(m.score_a - m.score_b) / 12;
     const d = ELO_K * mult * (sa - ea);
@@ -129,8 +129,16 @@ function computeElo(all) {
     PLAYERS.forEach((p) => hist[p].push(rating[p]));
   });
   const ranked = [...PLAYERS].sort((a, b) => rating[b] - rating[a]);
-  return { rating, hist, perSession, ranked };
+  return { rating, hist, perSession, ranked, probs };
 }
+/** Šance týmu A porazit tým B podle ELO (tým = průměr hráčů). */
+function winProb(rating, teamA, teamB) {
+  const ra = (rating[teamA[0]] + rating[teamA[1]]) / 2;
+  const rb = (rating[teamB[0]] + rating[teamB[1]]) / 2;
+  return 1 / (1 + 10 ** ((rb - ra) / 400));
+}
+/** Zaokrouhlená procenta, která dají vždy dohromady 100. */
+function pctPair(pa) { const a = Math.round(pa * 100); return [a, 100 - a]; }
 
 /* ============ HTML STAVEBNÍ BLOKY ============ */
 function standingsTable(rows, { clickable = false, elo = null } = {}) {
@@ -157,12 +165,21 @@ function matchRow(m, { editable = false } = {}) {
     : `<i>${m.score_a}</i><s>:</s><b>${m.score_b}</b>`;
   const canEdit = editable && !m._pending;
   const tag = canEdit ? 'button' : 'div';
+  // šance na výhru, jakou měly týmy před zápasem (+ 🚨 když vyhrál outsider)
+  const pa = state.probs && state.probs.get(String(m.id));
+  let prA = ''; let prB = '';
+  if (pa != null) {
+    const [a, b] = pctPair(pa);
+    const upset = aWon ? a < 50 : b < 50;
+    prA = `<em class="pr" title="Šance před zápasem">${a} %${aWon && upset ? ' 🚨' : ''}</em>`;
+    prB = `<em class="pr" title="Šance před zápasem">${b} %${!aWon && upset ? ' 🚨' : ''}</em>`;
+  }
   const q = m._pending ? `<span class="q ${m._failed ? 'fail' : ''}" title="${m._failed ? 'Nepodařilo se uložit' : 'Čeká na odeslání'}">${m._failed ? '⚠' : '⏳'}</span>` : '';
   return `<${tag} class="m-row ${canEdit ? 'editable' : ''} ${m._pending ? 'pending' : ''}" ${canEdit ? `type="button" data-edit="${m.id}"` : ''}>
     <span class="no">#${m.match_no}</span>
     <span class="teams-txt">
-      <span class="t ${aWon ? 'win' : ''}">${m.team_a[0]} & ${m.team_a[1]}</span>
-      <span class="t ${!aWon ? 'win' : ''}">${m.team_b[0]} & ${m.team_b[1]}</span>
+      <span class="t ${aWon ? 'win' : ''}"><span class="tn">${m.team_a[0]} & ${m.team_a[1]}</span>${prA}</span>
+      <span class="t ${!aWon ? 'win' : ''}"><span class="tn">${m.team_b[0]} & ${m.team_b[1]}</span>${prB}</span>
     </span>
     <span class="sc">${q}${sc}</span>
   </${tag}>`;
@@ -256,6 +273,10 @@ function rebuildState() {
   });
   state.sessions = sessions;
   state.matches = matches;
+  // ELO včetně zápasů čekajících na odeslání → šance pro další zápas i zpětně pro každý odehraný
+  const elo = computeElo(chronoMatches().filter((m) => !m._failed));
+  state.probs = elo.probs;
+  state.rating = elo.rating;
 }
 function saveOutbox() { lsSet(OUTBOX_KEY, outbox); }
 function saveCache() { lsSet(CACHE_KEY, { sessions: server.sessions, matches: server.matches, savedAt: Date.now() }); }
@@ -427,6 +448,13 @@ function renderPlay() {
   const names = (t) => `<div class="team-avs">${av(t[0], 46)}${av(t[1], 46)}</div>${t[0]}<span class="amp">&</span>${t[1]}`;
   el.teamANames.innerHTML = names(rot.teamA);
   el.teamBNames.innerHTML = names(rot.teamB);
+  const [pa, pb] = pctPair(winProb(state.rating || {}, rot.teamA, rot.teamB) || 0.5);
+  $('probA').textContent = `${pa} %`;
+  $('probB').textContent = `${pb} %`;
+  $('probFillA').style.flexGrow = pa;
+  $('probFillB').style.flexGrow = pb;
+  $('probA').classList.toggle('fav', pa > pb);
+  $('probB').classList.toggle('fav', pb > pa);
   el.tonightCount.textContent = ms.length;
   el.tonightMatches.innerHTML = ms.length
     ? [...ms].reverse().map((m) => matchRow(m, { editable: true })).join('')
@@ -474,7 +502,9 @@ function validateScores() {
     const { rot } = currentPlay();
     const winners = a > b ? rot.teamA : rot.teamB;
     (a > b ? el.scoreA : el.scoreB).classList.add('winner');
-    el.validationMsg.textContent = `Vítězí ${winners[0]} & ${winners[1]} (${a}:${b})`;
+    const pA = winProb(state.rating || {}, rot.teamA, rot.teamB) || 0.5;
+    const upset = (a > b ? pA : 1 - pA) < 0.5;
+    el.validationMsg.textContent = `Vítězí ${winners[0]} & ${winners[1]} (${a}:${b})${upset ? ' · 🚨 překvapení!' : ''}`;
     el.validationMsg.className = 'validation ok';
   } else {
     el.validationMsg.textContent = 'Součet míčků musí být přesně 21.';

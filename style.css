@@ -246,9 +246,12 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .m-row:first-child { border-top: 0; }
 .m-row .no { font-size: 11px; font-weight: 700; color: var(--muted); }
 .m-row .teams-txt { min-width: 0; line-height: 1.35; }
-.m-row .t { display: block; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-row .t { display: flex; align-items: baseline; gap: 6px; color: var(--text-2); min-width: 0; }
+.m-row .tn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .m-row .t.win { color: var(--text); font-weight: 700; }
-.m-row .t.win::after { content: " ●"; color: var(--ball); font-size: 8px; vertical-align: 2px; }
+.m-row .t.win .tn::after { content: " ●"; color: var(--ball); font-size: 8px; vertical-align: 2px; }
+.m-row .pr { font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.m-row .t.win .pr { color: #8fc4ff; }
 .m-row .sc {
   font-family: 'Barlow Condensed'; font-weight: 800; font-size: 20px; background: rgba(6,17,31,.7);
   border: 1px solid var(--line); border-radius: 8px; padding: 1px 9px; white-space: nowrap;
@@ -508,3 +511,16 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
   .p-elo { font-size: 48px; }
   .form-row { grid-template-columns: 80px minmax(0, 1fr); }
 }
+
+/* Šance na výhru (ELO) */
+.prob { position: relative; margin-top: 12px; }
+.prob-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.prob-top span[id] { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 20px; color: var(--text-2); transition: color .2s; }
+.prob-a.fav { color: #8fc4ff !important; }
+.prob-b.fav { color: #6ee7c8 !important; }
+.prob-lbl { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); }
+.prob-bar { display: flex; gap: 2px; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(6,17,31,.6); }
+.prob-bar div { flex-basis: 0; flex-grow: 50; transition: flex-grow .5s ease; min-width: 4px; }
+.prob-bar .fill-a { background: #4f9cf0; border-radius: 99px 0 0 99px; }
+.prob-bar .fill-b { background: #2fc4a0; border-radius: 0 99px 99px 0; }
+@media (max-width: 340px) { .card-title > .muted { display: none; } }
