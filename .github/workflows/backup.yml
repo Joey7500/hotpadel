@@ -1,0 +1,55 @@
+name: Denní záloha + keep-alive
+
+# Každý den stáhne všechna data ze Supabase do složky backups/.
+# Zároveň tím drží Supabase projekt aktivní (free tier se jinak po 7 dnech nečinnosti uspí).
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      SB_URL: https://jrbaxjtpatskvcdqvjnb.supabase.co
+      SB_KEY: sb_publishable_TcHGhvjBw-FBgatur5ZS3A_VO4kziJq
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stáhnout data
+        run: |
+          set -euo pipefail
+          fetch() {
+            local table=$1 off=0
+            echo '[]' > "/tmp/$table.json"
+            while :; do
+              curl -fsS "$SB_URL/rest/v1/$table?select=*&order=id&limit=1000&offset=$off" \
+                -H "apikey: $SB_KEY" > /tmp/page.json
+              jq -s '.[0] + .[1]' "/tmp/$table.json" /tmp/page.json > /tmp/merged.json
+              mv /tmp/merged.json "/tmp/$table.json"
+              [ "$(jq length /tmp/page.json)" -lt 1000 ] && break
+              off=$((off + 1000))
+            done
+          }
+          fetch sessions
+          fetch matches
+          mkdir -p backups
+          jq -n --slurpfile s /tmp/sessions.json --slurpfile m /tmp/matches.json \
+            '{sessions: $s[0], matches: $m[0]}' > backups/latest.json
+          echo "Večerů: $(jq '.sessions|length' backups/latest.json), zápasů: $(jq '.matches|length' backups/latest.json)"
+
+      - name: Uložit zálohu (jen když se data změnila)
+        run: |
+          if [ -n "$(git status --porcelain backups)" ]; then
+            cp backups/latest.json "backups/$(date -u +%F).json"
+            git config user.name "hotpadel-backup"
+            git config user.email "actions@users.noreply.github.com"
+            git add backups
+            git commit -m "Záloha dat $(date -u +%F)"
+            git push
+          else
+            echo "Beze změn – nic k uložení."
+          fi

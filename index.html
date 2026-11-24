@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HotPadel</title>
+  <meta name="description" content="Naše týdenní padel Americano – výsledky, historie a statistiky.">
+  <meta name="theme-color" content="#06111f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="HotPadel">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <div class="bg-court" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13"/><path d="M8 7.5c4 4 4 13 0 17M24 7.5c-4 4-4 13 0 17"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">HOT<span>PADEL</span></div>
+        <div class="brand-sub">Americano · 21 míčků · 4 hráči</div>
+      </div>
+    </div>
+    <div id="syncChip" class="sync-chip" title="Stav připojení"><span class="dot"></span><span class="txt">Načítám…</span></div>
+  </header>
+
+  <main class="app">
+    <!-- ================= HRÁT ================= -->
+    <section id="view-play" class="view" data-view="hrat">
+      <div class="session-head card glass">
+        <div>
+          <div id="sessionDate" class="session-date">Dnes</div>
+          <div id="sessionSub" class="session-sub">Nový večer začne prvním zapsaným zápasem</div>
+        </div>
+        <div id="liveBadge" class="live-badge hidden"><span></span>LIVE</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Tabulka večera</span><span class="muted small">Výhry → Body</span></div>
+        <table class="standings" id="tonightTable"></table>
+      </div>
+
+      <div class="card match-card">
+        <div class="court-lines" aria-hidden="true"></div>
+        <div class="match-head">
+          <span class="pill-ball">Zápas #<span id="matchNo">1</span></span>
+          <span id="rotationLabel" class="muted small">Kombinace 1/3</span>
+        </div>
+
+        <div class="teams">
+          <div class="team team-a">
+            <div class="team-label">Tým A</div>
+            <div id="teamANames" class="team-names"></div>
+            <input id="scoreA" class="score-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="21" placeholder="–" autocomplete="off" aria-label="Body Tým A">
+            <div class="steppers">
+              <button type="button" class="step" data-team="A" data-d="-1" aria-label="Ubrat bod Týmu A">−</button>
+              <button type="button" class="step plus" data-team="A" data-d="1" aria-label="Přidat bod Týmu A">+</button>
+            </div>
+          </div>
+          <div class="net" aria-hidden="true"><span>VS</span></div>
+          <div class="team team-b">
+            <div class="team-label">Tým B</div>
+            <div id="teamBNames" class="team-names"></div>
+            <input id="scoreB" class="score-input" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="21" placeholder="–" autocomplete="off" aria-label="Body Tým B">
+            <div class="steppers">
+              <button type="button" class="step" data-team="B" data-d="-1" aria-label="Ubrat bod Týmu B">−</button>
+              <button type="button" class="step plus" data-team="B" data-d="1" aria-label="Přidat bod Týmu B">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-label">Rychlá volba (A : B)</div>
+        <div class="quick" id="quickGrid"></div>
+
+        <p id="validationMsg" class="validation"></p>
+        <button type="button" id="confirmBtn" class="btn-confirm" disabled>
+          <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+          Potvrdit výsledek
+        </button>
+      </div>
+
+      <div class="row-2">
+        <button type="button" id="undoBtn" class="btn-ghost" disabled>
+          <svg viewBox="0 0 24 24" class="ico amber"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+          Zpět poslední
+        </button>
+        <button type="button" id="finishBtn" class="btn-ghost danger" disabled>
+          <svg viewBox="0 0 24 24" class="ico"><path d="M5 21V4m0 0h11l-2 4 2 4H5"/></svg>
+          Ukončit večer
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Zápasy večera (<span id="tonightCount">0</span>)</span></div>
+        <div id="tonightMatches" class="match-list"></div>
+      </div>
+    </section>
+
+    <!-- ================= HISTORIE ================= -->
+    <section id="view-history" class="view hidden" data-view="historie">
+      <h2 class="view-title">Historie večerů</h2>
+      <div id="sessionList" class="session-list"></div>
+    </section>
+
+    <!-- ================= STATISTIKY ================= -->
+    <section id="view-stats" class="view hidden" data-view="statistiky">
+      <h2 class="view-title">Celkové statistiky</h2>
+      <div id="kpis" class="kpis"></div>
+
+      <div class="stats-grid">
+        <div class="card span-2">
+          <div class="card-title"><span>Celková tabulka</span><span class="muted small">Výhry → Body</span></div>
+          <div class="table-scroll"><table class="standings overall" id="overallTable"></table></div>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-title"><span>Kumulativní výhry</span><span class="muted small">po zápasech</span></div>
+          <div id="legendWins" class="legend"></div>
+          <div class="chart-box"><canvas id="chartWins" role="img" aria-label="Graf kumulativních výher hráčů"></canvas></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Forma</span><span class="muted small">posledních 10 zápasů</span></div>
+          <div id="formList" class="form-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Rekordy</span></div>
+          <div id="records" class="records"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Nejlepší dvojice</span><span class="muted small">% výher</span></div>
+          <div id="pairs" class="bars"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Proti komu</span><span class="muted small">výhry–prohry</span></div>
+          <div class="table-scroll"><table class="h2h" id="h2hTable"></table></div>
+          <p class="muted small mt">Řádek = hráč, sloupec = soupeř na druhé straně sítě.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Nejčastější výsledky</span></div>
+          <div id="scoreDist" class="bars"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Body za večer</span></div>
+          <div id="legendNights" class="legend"></div>
+          <div class="chart-box"><canvas id="chartNights" role="img" aria-label="Graf bodů hráčů za jednotlivé večery"></canvas></div>
+        </div>
+      </div>
+
+      <button type="button" id="exportBtn" class="btn-ghost wide">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>
+        Stáhnout zálohu dat (JSON)
+      </button>
+    </section>
+  </main>
+
+  <!-- Spodní navigace -->
+  <nav class="tabbar" aria-label="Navigace">
+    <a href="#hrat" data-tab="hrat">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M7 5.5c3 3 3 10 0 13M17 5.5c-3 3-3 10 0 13"/></svg>
+      <span>Hrát</span>
+    </a>
+    <a href="#historie" data-tab="historie">
+      <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      <span>Historie</span>
+    </a>
+    <a href="#statistiky" data-tab="statistiky">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      <span>Statistiky</span>
+    </a>
+  </nav>
+
+  <!-- Detail večera -->
+  <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <button type="button" class="icon-btn" id="sheetClose" aria-label="Zavřít">
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div>
+          <div id="sheetTitle" class="sheet-title"></div>
+          <div id="sheetSub" class="muted small"></div>
+        </div>
+      </div>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <script src="app.js?v=1" defer></script>
+</body>
+</html>

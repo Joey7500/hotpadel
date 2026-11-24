@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-23",
+  "players": ["Honza", "Martin", "Pepa", "Matouš"],
+  "matches": [
+    { "n": 1,  "teamA": ["Honza", "Martin"], "teamB": ["Pepa", "Matouš"],   "scoreA": 12, "scoreB": 9 },
+    { "n": 2,  "teamA": ["Honza", "Pepa"],   "teamB": ["Martin", "Matouš"], "scoreA": 7,  "scoreB": 14 },
+    { "n": 3,  "teamA": ["Honza", "Matouš"], "teamB": ["Martin", "Pepa"],   "scoreA": 12, "scoreB": 9 },
+    { "n": 4,  "teamA": ["Honza", "Martin"], "teamB": ["Pepa", "Matouš"],   "scoreA": 11, "scoreB": 10 },
+    { "n": 5,  "teamA": ["Honza", "Pepa"],   "teamB": ["Martin", "Matouš"], "scoreA": 3,  "scoreB": 18 },
+    { "n": 6,  "teamA": ["Honza", "Matouš"], "teamB": ["Martin", "Pepa"],   "scoreA": 11, "scoreB": 10 },
+    { "n": 7,  "teamA": ["Honza", "Martin"], "teamB": ["Pepa", "Matouš"],   "scoreA": 9,  "scoreB": 12 },
+    { "n": 8,  "teamA": ["Honza", "Pepa"],   "teamB": ["Martin", "Matouš"], "scoreA": 11, "scoreB": 10 },
+    { "n": 9,  "teamA": ["Honza", "Matouš"], "teamB": ["Martin", "Pepa"],   "scoreA": 13, "scoreB": 8 },
+    { "n": 10, "teamA": ["Honza", "Martin"], "teamB": ["Pepa", "Matouš"],   "scoreA": 7,  "scoreB": 14 },
+    { "n": 11, "teamA": ["Honza", "Pepa"],   "teamB": ["Martin", "Matouš"], "scoreA": 12, "scoreB": 9 },
+    { "n": 12, "teamA": ["Honza", "Matouš"], "teamB": ["Martin", "Pepa"],   "scoreA": 11, "scoreB": 10 },
+    { "n": 13, "teamA": ["Honza", "Martin"], "teamB": ["Pepa", "Matouš"],   "scoreA": 12, "scoreB": 9 },
+    { "n": 14, "teamA": ["Honza", "Pepa"],   "teamB": ["Martin", "Matouš"], "scoreA": 14, "scoreB": 7 },
+    { "n": 15, "teamA": ["Honza", "Matouš"], "teamB": ["Martin", "Pepa"],   "scoreA": 11, "scoreB": 10 }
+  ]
+}
