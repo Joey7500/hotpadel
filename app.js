@@ -483,6 +483,7 @@ function playerResults(all) {
 }
 
 function renderStats() {
+  if (!state.loaded) return;
   const { all, sessions, overall, nightsWon, nightRows } = computeStats();
   const close = all.filter((m) => Math.abs(m.score_a - m.score_b) === 1).length;
   el.kpis.innerHTML = [

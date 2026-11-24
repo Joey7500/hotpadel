@@ -274,7 +274,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .s-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 .s-open { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: #0b1a30; background: var(--ball); border-radius: 99px; padding: 3px 8px; }
 .podium { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.podium div { background: rgba(6,17,31,.55); border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; min-width: 0; }
+.podium > div { background: rgba(6,17,31,.55); border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; min-width: 0; }
 .podium .nm { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .podium .vl { font-family: 'Barlow Condensed'; font-size: 15px; font-weight: 700; color: var(--text-2); }
 .podium .first { border-color: rgba(212,245,60,.45); background: rgba(212,245,60,.07); }
