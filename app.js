@@ -157,7 +157,10 @@ async function adminCall(fn, args, pin) {
   const { error } = await db.rpc(fn, { ...args, p_pin: pin });
   if (!error) return true;
   console.error(error);
-  toast(/WRONG_PIN/.test(error.message) ? 'Špatný PIN 🔒' : 'Nepovedlo se – zkus znovu.', true);
+  const msg = /WRONG_PIN/.test(error.message) ? 'Špatný PIN 🔒'
+    : error.code === 'PGRST202' ? 'Ochrana PINem ještě není v databázi zapnutá.'
+    : 'Nepovedlo se – zkus znovu.';
+  toast(msg, true);
   return false;
 }
 
