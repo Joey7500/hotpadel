@@ -836,7 +836,7 @@ function renderStats() {
   el.overallTable.innerHTML = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">V</th><th>%</th><th>Body</th><th>Ø</th><th title="Vyhrané večery">👑</th></tr></thead><tbody>` +
     overall.map((r, i) => `<tr class="tap ${any && i === 0 ? 'lead' : ''}" data-player="${SLUG[r.name]}">
       <td><span class="rank ${any && i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span></td>
-      <td class="name">${av(r.name)}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.rating[r.name])}</small></span></td>
+      <td class="name">${av(r.name, 24)}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.rating[r.name])}</small></span></td>
       <td class="dim">${r.played}</td>
       <td class="w">${r.wins}</td>
       <td class="dim">${pct(r.wins, r.played)}</td>
