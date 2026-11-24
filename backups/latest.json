@@ -1,0 +1,253 @@
+{
+  "sessions": [
+    {
+      "id": 1,
+      "played_on": "2026-11-23",
+      "finished": true,
+      "note": null,
+      "created_at": "2026-11-23T19:00:00+00:00"
+    }
+  ],
+  "matches": [
+    {
+      "id": 1,
+      "session_id": 1,
+      "match_no": 1,
+      "team_a": [
+        "Honza",
+        "Martin"
+      ],
+      "team_b": [
+        "Pepa",
+        "Matouš"
+      ],
+      "score_a": 12,
+      "score_b": 9,
+      "created_at": "2026-11-23T19:05:00+00:00"
+    },
+    {
+      "id": 2,
+      "session_id": 1,
+      "match_no": 2,
+      "team_a": [
+        "Honza",
+        "Pepa"
+      ],
+      "team_b": [
+        "Martin",
+        "Matouš"
+      ],
+      "score_a": 7,
+      "score_b": 14,
+      "created_at": "2026-11-23T19:12:00+00:00"
+    },
+    {
+      "id": 3,
+      "session_id": 1,
+      "match_no": 3,
+      "team_a": [
+        "Honza",
+        "Matouš"
+      ],
+      "team_b": [
+        "Martin",
+        "Pepa"
+      ],
+      "score_a": 12,
+      "score_b": 9,
+      "created_at": "2026-11-23T19:19:00+00:00"
+    },
+    {
+      "id": 4,
+      "session_id": 1,
+      "match_no": 4,
+      "team_a": [
+        "Honza",
+        "Martin"
+      ],
+      "team_b": [
+        "Pepa",
+        "Matouš"
+      ],
+      "score_a": 11,
+      "score_b": 10,
+      "created_at": "2026-11-23T19:26:00+00:00"
+    },
+    {
+      "id": 5,
+      "session_id": 1,
+      "match_no": 5,
+      "team_a": [
+        "Honza",
+        "Pepa"
+      ],
+      "team_b": [
+        "Martin",
+        "Matouš"
+      ],
+      "score_a": 3,
+      "score_b": 18,
+      "created_at": "2026-11-23T19:33:00+00:00"
+    },
+    {
+      "id": 6,
+      "session_id": 1,
+      "match_no": 6,
+      "team_a": [
+        "Honza",
+        "Matouš"
+      ],
+      "team_b": [
+        "Martin",
+        "Pepa"
+      ],
+      "score_a": 11,
+      "score_b": 10,
+      "created_at": "2026-11-23T19:40:00+00:00"
+    },
+    {
+      "id": 7,
+      "session_id": 1,
+      "match_no": 7,
+      "team_a": [
+        "Honza",
+        "Martin"
+      ],
+      "team_b": [
+        "Pepa",
+        "Matouš"
+      ],
+      "score_a": 9,
+      "score_b": 12,
+      "created_at": "2026-11-23T19:47:00+00:00"
+    },
+    {
+      "id": 8,
+      "session_id": 1,
+      "match_no": 8,
+      "team_a": [
+        "Honza",
+        "Pepa"
+      ],
+      "team_b": [
+        "Martin",
+        "Matouš"
+      ],
+      "score_a": 11,
+      "score_b": 10,
+      "created_at": "2026-11-23T19:54:00+00:00"
+    },
+    {
+      "id": 9,
+      "session_id": 1,
+      "match_no": 9,
+      "team_a": [
+        "Honza",
+        "Matouš"
+      ],
+      "team_b": [
+        "Martin",
+        "Pepa"
+      ],
+      "score_a": 13,
+      "score_b": 8,
+      "created_at": "2026-11-23T20:01:00+00:00"
+    },
+    {
+      "id": 10,
+      "session_id": 1,
+      "match_no": 10,
+      "team_a": [
+        "Honza",
+        "Martin"
+      ],
+      "team_b": [
+        "Pepa",
+        "Matouš"
+      ],
+      "score_a": 7,
+      "score_b": 14,
+      "created_at": "2026-11-23T20:08:00+00:00"
+    },
+    {
+      "id": 11,
+      "session_id": 1,
+      "match_no": 11,
+      "team_a": [
+        "Honza",
+        "Pepa"
+      ],
+      "team_b": [
+        "Martin",
+        "Matouš"
+      ],
+      "score_a": 12,
+      "score_b": 9,
+      "created_at": "2026-11-23T20:15:00+00:00"
+    },
+    {
+      "id": 12,
+      "session_id": 1,
+      "match_no": 12,
+      "team_a": [
+        "Honza",
+        "Matouš"
+      ],
+      "team_b": [
+        "Martin",
+        "Pepa"
+      ],
+      "score_a": 11,
+      "score_b": 10,
+      "created_at": "2026-11-23T20:22:00+00:00"
+    },
+    {
+      "id": 13,
+      "session_id": 1,
+      "match_no": 13,
+      "team_a": [
+        "Honza",
+        "Martin"
+      ],
+      "team_b": [
+        "Pepa",
+        "Matouš"
+      ],
+      "score_a": 12,
+      "score_b": 9,
+      "created_at": "2026-11-23T20:29:00+00:00"
+    },
+    {
+      "id": 14,
+      "session_id": 1,
+      "match_no": 14,
+      "team_a": [
+        "Honza",
+        "Pepa"
+      ],
+      "team_b": [
+        "Martin",
+        "Matouš"
+      ],
+      "score_a": 14,
+      "score_b": 7,
+      "created_at": "2026-11-23T20:36:00+00:00"
+    },
+    {
+      "id": 15,
+      "session_id": 1,
+      "match_no": 15,
+      "team_a": [
+        "Honza",
+        "Matouš"
+      ],
+      "team_b": [
+        "Martin",
+        "Pepa"
+      ],
+      "score_a": 11,
+      "score_b": 10,
+      "created_at": "2026-11-23T20:43:00+00:00"
+    }
+  ]
+}
