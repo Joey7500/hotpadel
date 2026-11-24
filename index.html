@@ -10,13 +10,20 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="HotPadel">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="HotPadel 🎾">
+  <meta property="og:description" content="Naše týdenní padel Americano – výsledky, historie a statistiky.">
+  <meta property="og:url" content="https://joey7500.github.io/hotpadel/">
+  <meta property="og:image" content="https://joey7500.github.io/hotpadel/icons/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="bg-court" aria-hidden="true"></div>
@@ -44,6 +51,8 @@
         </div>
         <div id="liveBadge" class="live-badge hidden"><span></span>LIVE</div>
       </div>
+
+      <div id="outboxBanner" class="outbox-banner hidden" role="status"></div>
 
       <div class="card">
         <div class="card-title"><span>Tabulka večera</span><span class="muted small">Výhry → Body</span></div>
@@ -115,6 +124,10 @@
     <!-- ================= STATISTIKY ================= -->
     <section id="view-stats" class="view hidden" data-view="statistiky">
       <h2 class="view-title">Celkové statistiky</h2>
+      <div>
+        <div class="strip-title">Hráči <span class="muted small">· klepni na profil</span></div>
+        <div id="playerStrip" class="player-strip"></div>
+      </div>
       <div id="kpis" class="kpis"></div>
 
       <div class="stats-grid">
@@ -210,6 +223,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
-  <script src="app.js?v=4" defer></script>
+  <script src="app.js?v=6" defer></script>
 </body>
 </html>
