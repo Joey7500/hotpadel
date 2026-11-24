@@ -4,7 +4,8 @@ name: Denní záloha + keep-alive
 # Zároveň tím drží Supabase projekt aktivní (free tier se jinak po 7 dnech nečinnosti uspí).
 on:
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 3 * * *'    # 04:17 Praha (v noci)
+    - cron: '37 21 * * *'   # 22:37 Praha (po večerním hraní) – druhý běh pro jistotu
   workflow_dispatch:
 
 permissions:

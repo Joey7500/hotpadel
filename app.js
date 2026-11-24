@@ -80,10 +80,27 @@ function sameMatch(a, b) {
 function lsGet(k, fallback) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
 function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plné úložiště / privátní režim */ } }
 
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const VALID_PLAYERS = new Set(PLAYERS);
+/** Do aplikace pustíme jen zápasy našich 4 hráčů (ochrana proti nesmyslným / podvrženým datům). */
+function validMatch(m) {
+  const ps = [...(m.team_a || []), ...(m.team_b || [])];
+  return Array.isArray(m.team_a) && Array.isArray(m.team_b) && m.team_a.length === 2 && m.team_b.length === 2 && ps.every((p) => VALID_PLAYERS.has(p)) && new Set(ps).size === 4
+    && Number.isInteger(m.score_a) && Number.isInteger(m.score_b) && m.score_a + m.score_b === TOTAL;
+}
+function validSession(s) { return /^\d{4}-\d{2}-\d{2}$/.test(String(s.played_on)); }
+
 function sessionById(id) { return state.sessions.find((s) => sameId(s.id, id)); }
 function matchesOf(sessionId) { return state.matches.filter((m) => sameId(m.session_id, sessionId)).sort((a, b) => a.match_no - b.match_no); }
 function byCreated(a, b) { return new Date(a.created_at) - new Date(b.created_at); }
-function openSession() { return state.sessions.filter((s) => !s.finished).sort(byCreated).pop() || null; }
+function lastActivity(s, matches) {
+  const ts = [s.created_at, ...matches.filter((m) => sameId(m.session_id, s.id)).map((m) => m.created_at)]
+    .map((t) => new Date(t).getTime()).filter((t) => !isNaN(t));
+  return ts.length ? Math.max(...ts) : Date.now();
+}
+/** Zapomenutý neukončený večer (bez aktivity déle než STALE_HOURS) už nepočítáme jako rozehraný. */
+function isStale(s, matches = state.matches) { return Date.now() - lastActivity(s, matches) > STALE_HOURS * 3600e3; }
+function openSession() { return state.sessions.filter((s) => !s.finished && !isStale(s)).sort(byCreated).pop() || null; }
 function sortedSessions() { return [...state.sessions].sort((a, b) => b.played_on.localeCompare(a.played_on) || byCreated(b, a)); }
 function nextMatchNo(ms) { return ms.length ? Math.max(...ms.map((m) => m.match_no)) + 1 : 1; }
 function rotationFor(no) { return ROTATIONS[(no - 1) % ROTATIONS.length]; }
@@ -254,8 +271,8 @@ async function adminCall(fn, args, pin) {
 
 /* ============ DATA: SERVER + FRONTA ============ */
 function rebuildState() {
-  const sessions = [...server.sessions];
-  const matches = [...server.matches];
+  const sessions = server.sessions.filter(validSession);
+  const matches = server.matches.filter(validMatch);
   outbox.forEach((op) => {
     if (op.kind === 'session') {
       if (!sessions.some((s) => sameId(s.id, op.ref))) {
@@ -321,13 +338,21 @@ function opDone() {
   if (pendingOps === 0 && reloadDeferred) { reloadDeferred = false; scheduleReload(); }
 }
 
+/** Zapomenutý večer: se zápasy → ukončit, prázdný → smazat (aby v historii nezůstávaly prázdné večery). */
+async function closeStaleSession(s, hasMatches) {
+  const { error } = hasMatches
+    ? await db.from('sessions').update({ finished: true }).eq('id', s.id)
+    : await db.from('sessions').delete().eq('id', s.id);
+  if (error) return false;
+  if (hasMatches) s.finished = true;
+  else server.sessions = server.sessions.filter((x) => x.id !== s.id);
+  return true;
+}
 async function autoCloseStale() {
-  const s = server.sessions.filter((x) => !x.finished).sort(byCreated).pop();
-  if (!s || outbox.some((o) => sameId(o.session_id, s.id))) return;
-  const times = [s.created_at, ...server.matches.filter((m) => m.session_id === s.id).map((m) => m.created_at)].map((t) => new Date(t).getTime());
-  if (Date.now() - Math.max(...times) > STALE_HOURS * 3600e3) {
-    const { error } = await db.from('sessions').update({ finished: true }).eq('id', s.id);
-    if (!error) s.finished = true;
+  for (const s of server.sessions.filter((x) => !x.finished)) {
+    if (outbox.some((o) => sameId(o.session_id, s.id))) continue;
+    if (!isStale(s, server.matches)) continue;
+    await closeStaleSession(s, server.matches.some((m) => m.session_id === s.id));
   }
 }
 
@@ -356,15 +381,23 @@ async function flushOutbox() {
   }
 }
 
-async function flushSession(op) {
+async function flushSession(op, attempt = 0) {
   let real = null;
   const res = await db.from('sessions').insert({ played_on: op.played_on }).select().single();
   if (!res.error) real = res.data;
   else if (res.error.code === '23505') {
-    // už existuje rozehraný večer (jiný telefon nebo náš dřívější pokus) → použijeme ho
+    // už existuje rozehraný večer (jiný telefon nebo náš dřívější pokus) → použijeme ho…
     const r2 = await db.from('sessions').select('*').eq('finished', false).limit(1);
     if (r2.error || !r2.data.length) return 'stop';
-    real = r2.data[0];
+    const cand = r2.data[0];
+    const r3 = await db.from('matches').select('session_id,created_at').eq('session_id', cand.id);
+    if (r3.error) return 'stop';
+    // …ledaže je to zapomenutý večer z minula – ten ukončíme a založíme nový
+    if (isStale(cand, r3.data)) {
+      if (attempt > 1 || !(await closeStaleSession(cand, r3.data.length > 0))) return 'stop';
+      return flushSession(op, attempt + 1);
+    }
+    real = cand;
   } else if (isTransient(res)) return 'stop';
   else { op.failed = res.error.message; return 'failed'; }
   outbox.forEach((o) => { if (o.kind === 'match' && sameId(o.session_id, op.ref)) o.session_id = real.id; });
@@ -413,7 +446,7 @@ function renderOutboxBanner() {
   if (failed.length) {
     el.outboxBanner.className = 'outbox-banner err';
     el.outboxBanner.innerHTML = `<div><b>⚠ ${failed.length} ${plural(failed.length, 'zápas se nepodařilo', 'zápasy se nepodařilo', 'zápasů se nepodařilo')} uložit.</b>
-      <div class="small">${failed[0].failed || ''}</div></div>
+      <div class="small">${esc(failed[0].failed || '')}</div></div>
       <div class="ob-actions"><button type="button" class="btn sec" data-ob="retry">Zkusit znovu</button><button type="button" class="btn red" data-ob="drop">Zahodit</button></div>`;
   } else {
     el.outboxBanner.className = 'outbox-banner';
@@ -910,7 +943,6 @@ function renderPlayerSheet() {
   const matchLine = (r, label) => r ? `<div class="rec"><div><div class="l">${label}</div>
       <div class="d">s ${r.partner} vs ${r.opps[0]} & ${r.opps[1]} · ${fmtShort(sessionById(r.m.session_id).played_on)}</div></div>
       <div class="v">${r.my}:${r.opp}</div></div>` : '';
-  const bestPartner = pr.partners[0];
   const nemesis = pr.opponents[pr.opponents.length - 1];
   const victim = pr.opponents[0];
 
@@ -1285,12 +1317,19 @@ function exportJson() {
 }
 
 /* ============ ROUTING / RENDER ============ */
+/** Otisk dat – překreslujeme statistiky jen když se něco opravdu změnilo. */
 function dataSig() {
-  return [server.sessions.length, server.matches.length, server.sessions.filter((s) => s.finished).length,
-    server.matches.reduce((t, m) => t + m.score_a * 31 + m.match_no, 0), outbox.length, state.loaded].join('/');
+  let h = 7;
+  for (const m of server.matches) h = (Math.imul(h, 31) + m.id * 7 + m.score_a * 131 + m.match_no * 3 + m.session_id) | 0;
+  for (const s of server.sessions) h = (Math.imul(h, 31) + s.id * 17 + (s.finished ? 1 : 2)) | 0;
+  return [h, server.matches.length, server.sessions.length, outbox.length, state.loaded].join('/');
 }
+/** Navigace uvnitř aplikace (tlačítko ← pak vrací zpět v aplikaci, ne ven z ní). */
+function navigate(hash) { history.pushState({ inApp: true }, '', hash); route(); }
+let lastRouted = null;
 function route() {
   const h = decodeURIComponent((location.hash || '#hrat').slice(1));
+  lastRouted = location.hash;
   let view = h;
   sheet = null;
   if (h.startsWith('vecer-')) { view = 'historie'; sheet = { kind: 'session', id: h.slice(6) }; }
@@ -1364,13 +1403,15 @@ document.addEventListener('click', (e) => {
   const edit = e.target.closest('[data-edit]');
   if (edit) { openEditMatch(edit.dataset.edit); return; }
   const pl = e.target.closest('[data-player]');
-  if (pl) { location.hash = `hrac-${pl.dataset.player}`; return; }
+  if (pl) { navigate(`#hrac-${pl.dataset.player}`); return; }
   const s = e.target.closest('[data-session]');
-  if (s) location.hash = `vecer-${s.dataset.session}`;
+  if (s) navigate(`#vecer-${s.dataset.session}`);
 });
-$('sheetClose').addEventListener('click', () => { if (history.length > 1) history.back(); else closeSheet(); });
+// ← zpět: v rámci aplikace krok zpět; když přišel odkaz zvenku (Messenger), jen zavřít detail
+$('sheetClose').addEventListener('click', () => { if (history.state && history.state.inApp) history.back(); else closeSheet(); });
 $('exportBtn').addEventListener('click', exportJson);
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => { if (location.hash !== lastRouted) route(); });
+window.addEventListener('popstate', () => { if (location.hash !== lastRouted) route(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { scheduleReload(); flushOutbox(); } });
 window.addEventListener('online', () => { online = true; updateSyncChip(); flushOutbox(); scheduleReload(); });
 window.addEventListener('offline', () => { online = false; updateSyncChip(); });
