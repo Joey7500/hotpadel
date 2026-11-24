@@ -524,3 +524,12 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .prob-bar .fill-a { background: #4f9cf0; border-radius: 99px 0 0 99px; }
 .prob-bar .fill-b { background: #2fc4a0; border-radius: 0 99px 99px 0; }
 @media (max-width: 340px) { .card-title > .muted { display: none; } }
+
+/* Zajímavosti + štěstí/bilance v profilu */
+.ff .rec { width: 100%; background: none; border: 0; border-top: 1px solid var(--line); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ff .rec:first-child { border-top: 0; }
+.ff .ff-who { color: var(--text); font-weight: 600; }
+.ff .v small { font-family: Inter, sans-serif; font-size: 11px; font-weight: 500; color: var(--muted); margin-right: 2px; }
+.ff-note { margin: 8px 0 0; }
+.kpis-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#sheetBody > * + * { margin-top: 10px; }

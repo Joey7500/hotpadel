@@ -48,7 +48,7 @@ const el = {
   quickGrid: $('quickGrid'), validationMsg: $('validationMsg'), confirmBtn: $('confirmBtn'),
   undoBtn: $('undoBtn'), finishBtn: $('finishBtn'), tonightCount: $('tonightCount'), tonightMatches: $('tonightMatches'),
   sessionList: $('sessionList'), kpis: $('kpis'), playerStrip: $('playerStrip'), overallTable: $('overallTable'), formList: $('formList'),
-  records: $('records'), pairs: $('pairs'), h2hTable: $('h2hTable'), scoreDist: $('scoreDist'),
+  records: $('records'), funFacts: $('funFacts'), pairs: $('pairs'), h2hTable: $('h2hTable'), scoreDist: $('scoreDist'),
   legendWins: $('legendWins'), legendNights: $('legendNights'),
   sheet: $('sheet'), sheetTitle: $('sheetTitle'), sheetSub: $('sheetSub'), sheetBody: $('sheetBody'),
   modal: $('modal'), modalCard: $('modalCard'), toast: $('toast'),
@@ -154,6 +154,37 @@ function winProb(rating, teamA, teamB) {
   const rb = (rating[teamB[0]] + rating[teamB[1]]) / 2;
   return 1 / (1 + 10 ** ((rb - ra) / 400));
 }
+/** Štěstí (výhry − očekávané výhry podle ELO) a bilance míčků (získané − ztracené) pro každého hráče. */
+function luckBalance(all, probs) {
+  const out = Object.fromEntries(PLAYERS.map((p) => [p, { wins: 0, exp: 0, luck: 0, bal: 0 }]));
+  all.forEach((m) => {
+    const pa = probs.get(String(m.id));
+    if (pa == null) return;
+    const aWon = m.score_a > m.score_b;
+    const diff = m.score_a - m.score_b;
+    m.team_a.forEach((p) => { const o = out[p]; o.exp += pa; o.wins += aWon ? 1 : 0; o.bal += diff; });
+    m.team_b.forEach((p) => { const o = out[p]; o.exp += 1 - pa; o.wins += aWon ? 0 : 1; o.bal -= diff; });
+  });
+  PLAYERS.forEach((p) => { out[p].luck = out[p].wins - out[p].exp; });
+  return out;
+}
+/** Nejméně pravděpodobná výhra ze všech zápasů (null, když favorit vždy vyhrál). */
+function biggestUpset(all, probs) {
+  let best = null;
+  all.forEach((m) => {
+    const pa = probs.get(String(m.id));
+    if (pa == null) return;
+    const aWon = m.score_a > m.score_b;
+    const pw = aWon ? pa : 1 - pa;
+    if (pw < 0.5 - 1e-9 && (!best || pw < best.p)) best = { m, p: pw, winners: aWon ? m.team_a : m.team_b };
+  });
+  return best;
+}
+/** Desetinné číslo se znaménkem: +3,4 / −2,5 / ±0,0. */
+function sdec(x) { const r = Math.round(x * 10) / 10; return r > 0 ? `+${dec(r)}` : r < 0 ? `−${dec(-r)}` : '±0,0'; }
+function sessDateOf(m) { const s = sessionById(m.session_id); return s ? fmtShort(s.played_on) : ''; }
+function upDown(x) { return x > 0.05 ? 'up' : x < -0.05 ? 'down' : ''; }
+
 /** Zaokrouhlená procenta, která dají vždy dohromady 100. */
 function pctPair(pa) { const a = Math.round(pa * 100); return [a, 100 - a]; }
 
@@ -796,7 +827,7 @@ function renderStats() {
 
   if (!all.length) {
     el.overallTable.innerHTML = '<tbody><tr><td class="empty">Zatím žádná data.</td></tr></tbody>';
-    [el.formList, el.records, el.pairs, el.h2hTable, el.scoreDist].forEach((x) => { x.innerHTML = '<p class="empty">Zatím žádná data.</p>'; });
+    [el.formList, el.records, el.funFacts, el.pairs, el.h2hTable, el.scoreDist].forEach((x) => { x.innerHTML = '<p class="empty">Zatím žádná data.</p>'; });
     return;
   }
 
@@ -813,13 +844,30 @@ function renderStats() {
       <td class="dim">${r.played ? dec(r.points / r.played) : '–'}</td>
       <td class="p">${nightsWon[r.name]}</td></tr>`).join('') + '</tbody>';
 
+  // Zajímavosti (štěstí, největší překvapení, bilance míčků)
+  const lb = luckBalance(all, elo.probs);
+  const lucky = PLAYERS.slice().sort((a, b) => lb[b].luck - lb[a].luck)[0];
+  const balKing = PLAYERS.slice().sort((a, b) => lb[b].bal - lb[a].bal)[0];
+  const up = biggestUpset(all, elo.probs);
+  const ffRow = (attr, label, who, desc, val, cls = '') => `<button type="button" class="rec tap" ${attr}>
+      <div><div class="l">${label}</div><div class="d"><b class="ff-who">${who}</b>${desc ? ` · ${desc}` : ''}</div></div>
+      <div class="v ${cls}">${val}</div></button>`;
+  el.funFacts.innerHTML = [
+    ffRow(`data-player="${SLUG[lucky]}"`, '🍀 Štístko', lucky, 'výhry nad očekávání', sdec(lb[lucky].luck), upDown(lb[lucky].luck)),
+    up
+      ? ffRow(`data-session="${up.m.session_id}"`, '🚨 Překvapení', `${up.winners[0]} & ${up.winners[1]} ${Math.max(up.m.score_a, up.m.score_b)}:${Math.min(up.m.score_a, up.m.score_b)}`,
+        sessDateOf(up.m), `<small>šance</small> ${Math.round(up.p * 100)} %`)
+      : '<div class="rec"><div><div class="l">🚨 Překvapení</div><div class="d">favorit zatím vždy vyhrál</div></div><div class="v">–</div></div>',
+    ffRow(`data-player="${SLUG[balKing]}"`, '⚖️ Bilance', balKing, 'míčky získané − ztracené', signed(lb[balKing].bal), upDown(lb[balKing].bal)),
+  ].join('') + '<p class="muted small ff-note">Štístko = výhry navíc oproti šancím podle ELO. Bilance = rozdíl míčků ze všech zápasů.</p>';
+
   // Forma
   const res = playerResults(all);
   el.formList.innerHTML = PLAYERS.map((p) => `<button type="button" class="form-row tap" data-player="${SLUG[p]}"><span>${av(p, 22)}${p}</span>${formDots(res[p].slice(-10))}</button>`).join('') +
     '<p class="muted small" style="margin:2px 0 0">V = výhra, P = prohra · nejnovější vpravo</p>';
 
   // Rekordy
-  const sessDate = (m) => fmtShort(sessionById(m.session_id).played_on);
+  const sessDate = sessDateOf;
   const big = [...all].sort((x, y) => Math.abs(y.score_a - y.score_b) - Math.abs(x.score_a - x.score_b))[0];
   const bigWinners = big.score_a > big.score_b ? big.team_a : big.team_b;
   let bestNightPts = null; let bestNightWins = null;
@@ -932,6 +980,7 @@ function renderPlayerSheet() {
   const p = sheet.name;
   const { all, nightRows, elo } = computeStats();
   const pr = playerProfile(p, all, nightRows, elo);
+  const lb = luckBalance(all, elo.probs)[p];
   const rating = Math.round(elo.rating[p]);
   const eloRank = elo.ranked.indexOf(p) + 1;
   const lastNight = pr.nights[pr.nights.length - 1];
@@ -963,6 +1012,10 @@ function renderPlayerSheet() {
       <div class="kpi"><div class="kpi-val">${pr.nightsWon}</div><div class="kpi-lbl">👑 vyhrané večery</div></div>
       <div class="kpi"><div class="kpi-val">${pr.sk.cur}×</div><div class="kpi-lbl">${pr.sk.curWin === false ? 'aktuální série proher' : 'aktuální série výher 🔥'}</div></div>
       <div class="kpi"><div class="kpi-val">${pr.sk.longest}</div><div class="kpi-lbl">nejdelší série výher</div></div>
+    </div>
+    <div class="kpis kpis-3 kpis-2">
+      <div class="kpi"><div class="kpi-val ${upDown(lb.luck)}">${sdec(lb.luck)}</div><div class="kpi-lbl">🍀 štěstí · výhry nad očekávání ELO</div></div>
+      <div class="kpi"><div class="kpi-val ${upDown(lb.bal)}">${signed(lb.bal)}</div><div class="kpi-lbl">⚖️ bilance · míčky získané − ztracené</div></div>
     </div>
 
     <div class="card">
