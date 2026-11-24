@@ -541,3 +541,78 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .ff-note { margin: 8px 0 0; }
 .kpis-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #sheetBody > * + * { margin-top: 10px; }
+
+/* ===== Efekty avatarů: 🔥 vítěz / 🍳 poslední minulého večera =====
+   Animuje se jen transform + opacity (běží na GPU, nezatěžuje procesor). */
+.fx { position: relative; display: inline-block; vertical-align: middle; line-height: 0; isolation: isolate; flex-shrink: 0; }
+.fx > .av { position: relative; z-index: 1; margin: 0; }
+.pcard .fx { display: block; width: max-content; margin: 0 auto 8px; }
+.team-avs .fx { margin: 0 -5px; z-index: 1; }
+.p-hero { overflow: visible; }
+.p-hero .fx-cooked { margin-right: 26px; } /* místo pro rukojeť pánve */
+.app, .sheet-inner { overflow-x: clip; }
+
+/* oheň */
+.fx-fire > .av { box-shadow: 0 0 0 2.5px #ffb02e, 0 0 16px rgba(255,120,20,.75); }
+.fx-fire > .av.big { box-shadow: 0 0 0 4px #ffb02e, 0 0 26px rgba(255,120,20,.8); }
+.fx-glow {
+  position: absolute; inset: -16%; border-radius: 50%; z-index: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,160,40,.5) 48%, rgba(255,90,0,.22) 60%, rgba(255,60,0,0) 71%);
+  animation: fxGlow 1.3s ease-in-out infinite alternate;
+}
+.fx-flames { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.fx-flames b { position: absolute; left: 50%; bottom: 50%; aspect-ratio: 1; transform-origin: 50% 100%; }
+.fx-flames i { position: absolute; inset: 0; transform-origin: 50% 100%; animation: fxFlick .6s ease-in-out infinite alternate; }
+/* kapka se špičkou nahoru: čtverec se zaobleným vším kromě jednoho rohu, otočený o 45° */
+.fx-flames u {
+  position: absolute; inset: 0; border-radius: 0 50% 50% 50%; transform: rotate(45deg) scale(.72); transform-origin: 50% 60%;
+  background: linear-gradient(to top left, #ff3d00 0%, #ff6a10 30%, #ff9a1f 60%, #ffc23a 100%);
+  box-shadow: 0 0 8px rgba(255,100,10,.55);
+}
+.fx-flames u::after { /* jasné jádro u základny */
+  content: ""; position: absolute; inset: 38% 0 0 38%; border-radius: inherit;
+  background: linear-gradient(to top left, #ffd23c 0%, #fff4b8 100%);
+}
+@keyframes fxFlick {
+  0% { transform: scale(.9, 1.1) skewX(-6deg); opacity: .85; }
+  50% { transform: scale(1, 1.35) skewX(5deg); opacity: 1; }
+  100% { transform: scale(.85, 1.5) skewX(-3deg); opacity: .92; }
+}
+@keyframes fxGlow { from { opacity: .65; transform: scale(.95); } to { opacity: 1; transform: scale(1.04); } }
+
+/* upečený: pánev + kouř */
+.fx-pan { position: absolute; left: -14%; top: 62%; width: 160%; height: 54%; z-index: 0; overflow: visible; pointer-events: none;
+  transform-origin: 32% 45%; animation: fxPan 1.2s ease-in-out infinite; }
+.fx-pan svg { display: block; width: 100%; height: 100%; overflow: visible; stroke: none; }
+.fx-pan-front { z-index: 2; }
+.fx-cooked > .av { animation: fxSizzle 1.2s ease-in-out infinite; }
+@keyframes fxPan {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-3%) rotate(-3deg); }
+  50% { transform: translateX(1%) rotate(1deg); }
+  75% { transform: translateX(3%) rotate(2.5deg); }
+}
+@keyframes fxSizzle {
+  0%, 100% { transform: none; }
+  20% { transform: translateY(-5%) rotate(-3deg); }
+  40% { transform: translateY(0) rotate(2deg); }
+  60% { transform: translateY(-3%) rotate(-1deg); }
+  80% { transform: translateY(0) rotate(1deg); }
+}
+.fx-smoke { position: absolute; left: 25%; top: -18%; width: 50%; height: 50%; z-index: 2; pointer-events: none; }
+.fx-smoke i {
+  position: absolute; inset: 0; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(236,239,245,.95) 0%, rgba(214,219,229,.6) 38%, rgba(190,196,210,0) 70%);
+  animation: fxSmoke 2.4s ease-out infinite;
+}
+@keyframes fxSmoke {
+  0% { transform: translate(0, 40%) scale(.35); opacity: 0; }
+  20% { opacity: .9; }
+  100% { transform: translate(var(--x), -95%) scale(1.45); opacity: 0; }
+}
+
+/* kdo má v telefonu zapnuté „omezit pohyb“ → statická verze */
+@media (prefers-reduced-motion: reduce) {
+  .fx * { animation: none !important; }
+  .fx-smoke { display: none; }
+}

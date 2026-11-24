@@ -69,8 +69,40 @@ function signed(d) { const r = Math.round(d); return r > 0 ? `+${r}` : r < 0 ? `
 function uid() { return (crypto.randomUUID ? crypto.randomUUID() : `u${Date.now()}${Math.random().toString(16).slice(2)}`); }
 function avatarUrl(p) { return `avatars/${SLUG[p]}.jpg?v=1`; }
 function av(p, size = 26, cls = '') {
-  return `<img class="av ${cls}" src="${avatarUrl(p)}" alt="" width="${size}" height="${size}" style="--c:${COLORS[p] || '#888'};width:${size}px;height:${size}px" loading="lazy">`;
+  const img = `<img class="av ${cls}" src="${avatarUrl(p)}" alt="" width="${size}" height="${size}" style="--c:${COLORS[p] || '#888'};width:${size}px;height:${size}px" loading="lazy">`;
+  if (size < FX_MIN_SIZE) return img; // malé avatary bez efektů
+  if (p === FX.fire) return `<span class="fx fx-fire" title="Vyhrál minulý večer 🔥">${FIRE_HTML}${img}</span>`;
+  if (p === FX.cooked) return `<span class="fx fx-cooked" title="Minulý večer poslední – upečený 🍳">${PAN_BACK}${img}${PAN_FRONT}${SMOKE_HTML}</span>`;
+  return img;
 }
+
+/* ============ EFEKTY: 🔥 vítěz / 🍳 poslední minulého večera (jen velké avatary) ============ */
+const FX = { fire: null, cooked: null };
+const FX_MIN_SIZE = 40;
+// Plameny: špičaté jazyky po obvodu, naklopené vzhůru (oheň stoupá), nahoře větší, dole jen malé.
+// Vše v % avataru → funguje pro každou velikost.
+const FIRE_HTML = '<span class="fx-glow" aria-hidden="true"></span><span class="fx-flames" aria-hidden="true">' + Array.from({ length: 14 }, (_, i) => {
+  const ang = -180 + (i + 0.5) * (360 / 14); // poloha na obvodu (0 = nahoře)
+  const up = (1 + Math.cos((ang * Math.PI) / 180)) / 2; // 1 nahoře … 0 dole
+  const k = 0.45 + 0.55 * up + (i % 2 ? 0.08 : -0.06); // velikost (střídavě větší/menší)
+  const lean = -ang * 0.35; // jazyk se stáčí vzhůru
+  const w = 27 * k; // šířka v % avataru
+  const lift = (40 / w) * 100; // základna 40 % od středu (v % vlastní výšky; prvek je čtverec)
+  return `<b style="width:${w.toFixed(1)}%;margin-left:-${(w / 2).toFixed(1)}%;transform:rotate(${ang.toFixed(0)}deg) translateY(-${lift.toFixed(0)}%) rotate(${lean.toFixed(0)}deg)"><i style="animation-duration:${(0.5 + (i % 5) * 0.08).toFixed(2)}s;animation-delay:-${((i * 0.29) % 0.9).toFixed(2)}s"><u></u></i></b>`;
+}).join('') + '</span>';
+// Pánev: zadní část (za avatarem) + přední stěna (před avatarem), stejná animace → pohybují se spolu.
+const PAN_VB = 'viewBox="-14 62 160 54"';
+const PAN_BACK = `<span class="fx-pan" aria-hidden="true"><svg ${PAN_VB}>
+  <line x1="106" y1="92" x2="126" y2="96" stroke="#15161a" stroke-width="7" stroke-linecap="round"/>
+  <line x1="124" y1="95.5" x2="143" y2="99.5" stroke="#7a5230" stroke-width="10" stroke-linecap="round"/>
+  <line x1="127" y1="94" x2="140" y2="96.8" stroke="#a5754a" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="50" cy="86" rx="62" ry="15" fill="#0e0f12" stroke="#2c3038" stroke-width="2.5"/>
+  <ellipse cx="50" cy="88" rx="52" ry="10" fill="#1a1c21"/></svg></span>`;
+const PAN_FRONT = `<span class="fx-pan fx-pan-front" aria-hidden="true"><svg ${PAN_VB}>
+  <path d="M -12 86 A 62 15 0 0 0 112 86 L 108 98 A 58 15 0 0 1 -8 98 Z" fill="#26292f"/>
+  <path d="M -10 92 A 60 15 0 0 0 110 92" fill="none" stroke="#17181c" stroke-width="5"/>
+  <path d="M -12 86 A 62 15 0 0 0 112 86" fill="none" stroke="#4b515c" stroke-width="2"/></svg></span>`;
+const SMOKE_HTML = '<span class="fx-smoke" aria-hidden="true"><i style="--x:-35%;animation-delay:0s"></i><i style="--x:25%;animation-delay:-.8s"></i><i style="--x:-5%;animation-delay:-1.6s"></i></span>';
 function playerBySlug(slug) { return PLAYERS.find((p) => SLUG[p] === slug); }
 function sameId(a, b) { return String(a) === String(b); }
 function teamKey(t) { return [...t].sort().join('|'); }
@@ -325,6 +357,15 @@ function rebuildState() {
   const elo = computeElo(chronoMatches().filter((m) => !m._failed));
   state.probs = elo.probs;
   state.rating = elo.rating;
+  updateFx();
+}
+/** Vítěz posledního UKONČENÉHO večera hoří 🔥, poslední z něj je upečený 🍳 (drží se do ukončení dalšího večera). */
+function updateFx() {
+  const fin = state.sessions.filter((s) => s.finished && matchesOf(s.id).length)
+    .sort((a, b) => a.played_on.localeCompare(b.played_on) || byCreated(a, b)).pop();
+  const st = fin ? standings(matchesOf(fin.id)) : null;
+  FX.fire = st ? st[0].name : null;
+  FX.cooked = st ? st[st.length - 1].name : null;
 }
 function saveOutbox() { lsSet(OUTBOX_KEY, outbox); }
 function saveCache() { lsSet(CACHE_KEY, { sessions: server.sessions, matches: server.matches, savedAt: Date.now() }); }
