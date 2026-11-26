@@ -69,13 +69,13 @@ function signed(d) { const r = Math.round(d); return r > 0 ? `+${r}` : r < 0 ? `
 function uid() { return (crypto.randomUUID ? crypto.randomUUID() : `u${Date.now()}${Math.random().toString(16).slice(2)}`); }
 function avatarUrl(p) { return `avatars/${SLUG[p]}.jpg?v=1`; }
 /** Avatar. mode: 'auto' (velký ≥40 px → role + 🔥, malý → nic), 'evening' (malý v Tabulce večera → jen role),
- *  'strip' (karty na Statistikách → role + 🔥 + ✨ lídr), 'leader' (Celková tabulka → jen ✨ lídr), 'none'. */
+ *  ('evening' má i 🔥) 'strip' (karty na Statistikách → role + 🔥 + ✨ lídr), 'leader' (Celková tabulka → jen ✨ lídr), 'none'. */
 function av(p, size = 26, cls = '', mode = 'auto') {
   const img = `<img class="av ${cls}" src="${avatarUrl(p)}" alt="" width="${size}" height="${size}" style="--c:${COLORS[p] || '#888'};width:${size}px;height:${size}px" loading="lazy">`;
   if (mode === 'auto') mode = size >= FX_MIN_SIZE ? 'big' : 'none';
   if (mode === 'none') return img;
   const role = mode === 'leader' ? 0 : (FX.role[p] || 0);
-  const fire = (mode === 'big' || mode === 'strip') && FX.fire.has(p);
+  const fire = (mode === 'big' || mode === 'strip' || mode === 'evening') && FX.fire.has(p);
   const lead = (mode === 'strip' || mode === 'leader') && FX.leader === p;
   if (!role && !fire && !lead) return img;
   const cl = ['fx', role ? `fx-r${role}` : '', fire ? 'fx-fire' : '', lead ? 'fx-lead' : '', size < FX_MIN_SIZE ? 'fx-sm' : ''].filter(Boolean).join(' ');
