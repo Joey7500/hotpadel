@@ -688,3 +688,11 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .elo-split span { font-size: 11px; color: var(--text-2); }
 .elo-split > i { font-style: normal; color: var(--muted); font-weight: 700; }
 #sheetBody .p-hero:has(.fx-r1) { margin-top: 40px; } /* místo pro korunu */
+
+/* Kumulativní výhry + body: dva zarovnané panely */
+.chart-box.half { height: 170px; }
+.panel-lbl { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 6px 0 2px; }
+.ls { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--text-2); }
+.ls.dash { border-top-style: dashed; }
+.legend .ls-key { color: var(--muted); }
+@media (min-width: 900px) { .chart-box.half { height: 210px; } }

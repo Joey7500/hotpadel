@@ -1293,31 +1293,79 @@ function renderCharts(all, nightRows) {
   el.legendWins.innerHTML = legendHtml();
   el.legendNights.innerHTML = legendHtml();
 
-  const cum = Object.fromEntries(PLAYERS.map((p) => [p, [0]]));
+  // Kumulativní výhry (plná čára) a body (čárkovaná) – dva zarovnané panely se společnou osou X,
+  // stejné barvy a jména; klepnutí v jednom panelu ukáže stejný okamžik i ve druhém.
+  const cumW = Object.fromEntries(PLAYERS.map((p) => [p, [0]]));
+  const cumP = Object.fromEntries(PLAYERS.map((p) => [p, [0]]));
   all.forEach((m) => {
     const aWon = m.score_a > m.score_b;
     PLAYERS.forEach((p) => {
-      const prev = cum[p][cum[p].length - 1];
-      const won = (aWon && m.team_a.includes(p)) || (!aWon && m.team_b.includes(p));
-      cum[p].push(prev + (won ? 1 : 0));
+      const inA = m.team_a.includes(p); const inB = m.team_b.includes(p);
+      const won = (aWon && inA) || (!aWon && inB);
+      cumW[p].push(cumW[p][cumW[p].length - 1] + (won ? 1 : 0));
+      cumP[p].push(cumP[p][cumP[p].length - 1] + (inA ? m.score_a : inB ? m.score_b : 0));
     });
   });
-  charts.wins && charts.wins.destroy();
-  charts.wins = new Chart($('chartWins'), {
+  const labels = matchLabels(all);
+  const both = (i, p) => `${p}: ${cumW[p][i]} V · ${cumP[p][i]} b`;
+  const syncLine = {
+    id: 'syncLine',
+    afterDatasetsDraw(chart) {
+      const i = chart.$syncIdx;
+      if (i == null) return;
+      const meta = chart.getDatasetMeta(0); const pt = meta.data[i];
+      if (!pt) return;
+      const { top, bottom } = chart.chartArea; const { ctx } = chart;
+      ctx.save(); ctx.strokeStyle = 'rgba(207,220,236,.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pt.x, top); ctx.lineTo(pt.x, bottom); ctx.stroke(); ctx.restore();
+    },
+  };
+  const panel = (canvas, cum, dash, showX) => new Chart($(canvas), {
     type: 'line',
-    data: { labels: matchLabels(all), datasets: PLAYERS.map((p) => ({ label: p, data: cum[p], borderColor: COLORS[p], backgroundColor: COLORS[p], borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBorderColor: '#0b1a30', pointHoverBorderWidth: 2, tension: 0.25 })) },
+    data: {
+      labels,
+      datasets: PLAYERS.map((p) => ({
+        label: p, data: cum[p], borderColor: COLORS[p], backgroundColor: COLORS[p], borderWidth: 2, borderDash: dash,
+        pointRadius: 0, pointHoverRadius: 5, pointHoverBorderColor: '#0b1a30', pointHoverBorderWidth: 2, tension: 0.25,
+      })),
+    },
     options: {
       responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
-      layout: { padding: { right: 58 } },
+      layout: { padding: { right: 58, top: 4 } },
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: false }, tooltip: { ...tooltip, itemSort: (a, b) => b.raw - a.raw } },
+      onHover: (e, act, chart) => syncCharts(chart, act.length ? act[0].index : null),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltip, itemSort: (a, b) => cumP[b.dataset.label][b.dataIndex] - cumP[a.dataset.label][a.dataIndex],
+          callbacks: { label: (c) => both(c.dataIndex, c.dataset.label) },
+        },
+      },
       scales: {
-        x: { grid: { display: false }, ticks: xTicks },
-        y: { beginAtZero: true, grid, border: { display: false }, ticks: { precision: 0, padding: 6 } },
+        x: { grid: { display: false }, ticks: { ...xTicks, display: showX } },
+        // pevná šířka osy Y → oba panely mají graf přesně pod sebou
+        y: { beginAtZero: true, grid, border: { display: false }, ticks: { precision: 0, padding: 6 }, afterFit: (sc) => { sc.width = 40; } },
       },
     },
-    plugins: [endLabels],
+    plugins: [endLabels, syncLine],
   });
+  charts.wins && charts.wins.destroy();
+  charts.points && charts.points.destroy();
+  charts.wins = panel('chartWins', cumW, [], false);
+  charts.points = panel('chartPoints', cumP, [6, 4], true);
+  const pair = [charts.wins, charts.points];
+  function syncCharts(src, idx) {
+    pair.forEach((ch) => {
+      if (ch.$syncIdx === idx) return;
+      ch.$syncIdx = idx;
+      if (ch !== src) {
+        ch.setActiveElements(idx == null ? [] : PLAYERS.map((_, d) => ({ datasetIndex: d, index: idx })));
+        ch.tooltip.setActiveElements([], { x: 0, y: 0 });
+      }
+      ch.update('none');
+    });
+  }
+  pair.forEach((ch) => ch.canvas.addEventListener('mouseleave', () => syncCharts(null, null)));
 
   charts.nights && charts.nights.destroy();
   charts.nights = new Chart($('chartNights'), {
