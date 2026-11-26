@@ -1,7 +1,7 @@
 /* HotPadel service worker – aplikace se otevře i bez signálu. Data řeší app.js (cache + fronta). */
-const CACHE = 'hotpadel-v12';
+const CACHE = 'hotpadel-v13';
 const SHELL = [
-  './', 'index.html', 'style.css?v=12', 'app.js?v=12', 'manifest.webmanifest',
+  './', 'index.html', 'style.css?v=13', 'app.js?v=13', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/apple-touch-icon.png',
   'avatars/honza.jpg?v=1', 'avatars/martin.jpg?v=1', 'avatars/pepa.jpg?v=1', 'avatars/matous.jpg?v=1',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js',

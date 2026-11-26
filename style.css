@@ -431,7 +431,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; 
 .delta.down, .down { color: #ff9aa2; }
 tr.tap, .tap { cursor: pointer; }
 tr.tap:active td { background: rgba(255,255,255,.04); }
-.team-avs { display: flex; justify-content: center; margin-bottom: 6px; }
+.team-avs { display: flex; justify-content: center; margin-bottom: 6px; padding-top: 12px; }
 .team-avs .av { margin: 0 -5px; box-shadow: 0 0 0 2.5px #0b1f3c, 0 0 0 4px var(--c); }
 .podium > div .av { margin: 0 auto 4px; display: block; }
 .h2h th .av { margin: 0; }
@@ -509,9 +509,8 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .btn.wide { width: 100%; }
 .share-preview { width: 100%; border-radius: 14px; display: block; margin: 4px 0 12px; border: 1px solid var(--line-strong); max-height: 52vh; object-fit: contain; background: #06111f; }
 .modal-card { max-height: calc(100dvh - 32px); overflow-y: auto; }
-.finish-hero { position: relative; width: 104px; margin: 4px auto 12px; }
+.finish-hero { position: relative; width: 104px; margin: 44px auto 12px; }
 .finish-hero .av { box-shadow: 0 0 0 4px var(--ball), 0 0 30px rgba(212,245,60,.45); }
-.finish-hero .crown { position: absolute; top: -18px; right: -14px; font-size: 34px; transform: rotate(18deg); }
 .center { text-align: center; }
 @media (max-width: 360px) {
   .player-strip { gap: 6px; }
@@ -542,14 +541,14 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .kpis-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #sheetBody > * + * { margin-top: 10px; }
 
-/* ===== Efekty avatarů: 🔥 vítěz / 🍳 poslední minulého večera =====
+/* ===== Efekty avatarů: 👑 1. · 😡 2. · 😰 3. · 🍳 4. večera · 🔥 série 3+ · ✨ lídr celkové tabulky =====
    Animuje se jen transform + opacity (běží na GPU, nezatěžuje procesor). */
 .fx { position: relative; display: inline-block; vertical-align: middle; line-height: 0; isolation: isolate; flex-shrink: 0; }
 .fx > .av { position: relative; z-index: 1; margin: 0; }
 .pcard .fx { display: block; width: max-content; margin: 0 auto 8px; }
 .team-avs .fx { margin: 0 -5px; z-index: 1; }
 .p-hero { overflow: visible; }
-.p-hero .fx-cooked { margin-right: 26px; } /* místo pro rukojeť pánve */
+.p-hero .fx-r4 { margin-right: 26px; } /* místo pro rukojeť pánve */
 .app, .sheet-inner { overflow-x: clip; }
 
 /* oheň */
@@ -583,9 +582,9 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 /* upečený: pánev + kouř */
 .fx-pan { position: absolute; left: -14%; top: 62%; width: 160%; height: 54%; z-index: 0; overflow: visible; pointer-events: none;
   transform-origin: 32% 45%; animation: fxPan 1.2s ease-in-out infinite; }
-.fx-pan svg { display: block; width: 100%; height: 100%; overflow: visible; stroke: none; }
+.fx svg { display: block; width: 100%; height: 100%; overflow: visible; stroke: none; }
 .fx-pan-front { z-index: 2; }
-.fx-cooked > .av { animation: fxSizzle 1.2s ease-in-out infinite; }
+.fx-r4 > .av { animation: fxSizzle 1.2s ease-in-out infinite; }
 @keyframes fxPan {
   0%, 100% { transform: none; }
   25% { transform: translateX(-3%) rotate(-3deg); }
@@ -611,10 +610,69 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
   100% { transform: translate(var(--x), -95%) scale(1.45); opacity: 0; }
 }
 
+/* v tabulkách: místo mezi avatarem a jménem */
+.standings td.name .fx { margin-right: 9px; }
+.overall td.name .fx { margin-right: 7px; }
+.standings td.name .fx-r4 { margin-right: 15px; }
+
+/* 👑 1. místo: koruna nad hlavou, otáčí se */
+.fx-crown { position: absolute; left: 14%; top: -44%; width: 72%; aspect-ratio: 100 / 72; z-index: 3; pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); animation: fxSpin 2.8s linear infinite; }
+@keyframes fxSpin { from { transform: perspective(240px) rotateY(0deg); } to { transform: perspective(240px) rotateY(360deg); } }
+.fx-r1 > .av { box-shadow: 0 0 0 2.5px #ffcf33, 0 0 12px rgba(255,207,51,.55); }
+.fx-r1 > .av.big { box-shadow: 0 0 0 4px #ffcf33, 0 0 24px rgba(255,207,51,.6); }
+
+/* 😡 2. místo: máchá baseballkou, 💢, rudne */
+.fx-bat { position: absolute; left: 71%; bottom: 25%; width: 17%; height: 85%; z-index: 3; pointer-events: none;
+  transform-origin: 50% 100%; animation: fxSwing 1.7s ease-in-out infinite; }
+@keyframes fxSwing {
+  0% { transform: rotate(24deg); }
+  38% { transform: rotate(40deg); }
+  52% { transform: rotate(-72deg); }
+  57% { transform: rotate(-62deg); }
+  62% { transform: rotate(-70deg); }
+  100% { transform: rotate(24deg); }
+}
+.fx-anger { position: absolute; right: -12%; top: -8%; width: 34%; aspect-ratio: 1; z-index: 3; pointer-events: none;
+  animation: fxPulse .55s ease-in-out infinite alternate; }
+@keyframes fxPulse { from { transform: scale(.75); } to { transform: scale(1.15); } }
+.fx-flush { position: absolute; inset: 0; border-radius: 50%; z-index: 1; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,50,40,0) 30%, rgba(255,40,30,.5) 100%); animation: fxFlush .8s ease-in-out infinite alternate; }
+@keyframes fxFlush { from { opacity: .25; } to { opacity: .95; } }
+.fx-r2 > .av { animation: fxRage .5s ease-in-out infinite alternate; box-shadow: 0 0 0 2.5px #ff4d4d, 0 0 10px rgba(255,60,60,.5); }
+.fx-r2 > .av.big { box-shadow: 0 0 0 4px #ff4d4d, 0 0 20px rgba(255,60,60,.55); }
+@keyframes fxRage { from { transform: rotate(-2.5deg) translateX(-1.5%); } to { transform: rotate(2.5deg) translateX(1.5%); } }
+
+/* 😰 3. místo: třese se a potí */
+.fx-r3 > .av { animation: fxShiver .12s linear infinite alternate; filter: saturate(.75) brightness(1.05); }
+@keyframes fxShiver { from { transform: translateX(-3%) rotate(-.6deg); } to { transform: translateX(3%) rotate(.6deg); } }
+.fx-sweat { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.fx-sweat i { position: absolute; width: 17%; aspect-ratio: 20 / 28; opacity: 0; animation: fxDrip 1.9s ease-in infinite; }
+@keyframes fxDrip {
+  0% { transform: translateY(0) scale(.5); opacity: 0; }
+  15% { transform: translateY(5%) scale(1); opacity: 1; }
+  80% { transform: translateY(150%) scale(1); opacity: .9; }
+  100% { transform: translateY(190%) scale(.9); opacity: 0; }
+}
+
+/* ✨ lídr celkové tabulky: zlatá svatozář + jiskry */
+.fx-halo { position: absolute; inset: -16%; border-radius: 50%; z-index: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,214,64,0) 50%, rgba(255,214,64,.6) 61%, rgba(255,190,30,0) 72%);
+  animation: fxHalo 1.8s ease-in-out infinite alternate; }
+@keyframes fxHalo { from { opacity: .55; transform: scale(.94); } to { opacity: 1; transform: scale(1.06); } }
+.fx-lead:not(.fx-fire):not(.fx-r1):not(.fx-r2) > .av { box-shadow: 0 0 0 2.5px #ffd640, 0 0 12px rgba(255,214,64,.6); }
+.fx-sparks { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.fx-sparks i { position: absolute; width: 26%; aspect-ratio: 1; animation: fxTwinkle 1.8s ease-in-out infinite; opacity: 0; }
+@keyframes fxTwinkle {
+  0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) rotate(90deg); opacity: 1; }
+}
+
 /* kdo má v telefonu zapnuté „omezit pohyb“ → statická verze */
 @media (prefers-reduced-motion: reduce) {
   .fx * { animation: none !important; }
-  .fx-smoke { display: none; }
+  .fx-smoke, .fx-sweat i:not(:first-child) { display: none; }
+  .fx-sweat i, .fx-sparks i { opacity: 1; transform: none; }
 }
 
 /* Bonusy k ELO */
@@ -629,3 +687,4 @@ button.bar-row { background: none; border: 0; padding: 0; text-align: left; widt
 .elo-split b { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; line-height: 1; }
 .elo-split span { font-size: 11px; color: var(--text-2); }
 .elo-split > i { font-style: normal; color: var(--muted); font-weight: 700; }
+#sheetBody .p-hero:has(.fx-r1) { margin-top: 40px; } /* místo pro korunu */

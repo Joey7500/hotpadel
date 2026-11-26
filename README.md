@@ -10,6 +10,19 @@ Our weekly padel Americano (4 players, 21 balls per match): live scoring, histor
 - **Historie:** every evening by date. Tap one for the detail view. Tap any match to fix or delete it.
 - **Statistiky:** overall table, form, records, best pairs, head-to-head and charts.
 
+## Ranking
+The evening table and the overall table are sorted by **points won** (the same order as +/−). Ties are broken by **wins**, then by **rating** (ELO + bonuses) as it was at the start of the evening.
+
+## Animations
+- **Evening roles**, following the current evening standings from its first entered match. Once the evening ends they stay until the next one starts:
+  - 👑 1st: a rotating crown.
+  - 😡 2nd: swinging a baseball bat, with an anger mark.
+  - 😰 3rd: shivering and sweating.
+  - 🍳 4th: in a pan with smoke.
+- **Where roles show:** Tabulka večera (also when it's empty), the Hrát team avatars, the player cards on Statistiky, profiles and the end-of-evening screen. They don't show in Celková tabulka.
+- 🔥 **Fire:** a current streak of 3 or more wins in a row. It lasts until the next loss, including over the week between evenings. It shows on large avatars only.
+- ✨ **Overall leader** (most points in total): a golden halo with sparkles, shown only on the Statistiky player cards and in Celková tabulka.
+
 ## ELO and bonuses
 The number shown next to each name is **ELO from matches + bonuses**.
 - **ELO from matches:** a team's rating is the average of its two players. Bigger wins count more. It starts at 1000, uses K = 24, and is recalculated from the first evening every time anything changes.

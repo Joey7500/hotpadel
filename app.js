@@ -68,17 +68,47 @@ function dec(x) { return x.toFixed(1).replace('.', ','); }
 function signed(d) { const r = Math.round(d); return r > 0 ? `+${r}` : r < 0 ? `−${Math.abs(r)}` : '±0'; }
 function uid() { return (crypto.randomUUID ? crypto.randomUUID() : `u${Date.now()}${Math.random().toString(16).slice(2)}`); }
 function avatarUrl(p) { return `avatars/${SLUG[p]}.jpg?v=1`; }
-function av(p, size = 26, cls = '') {
+/** Avatar. mode: 'auto' (velký ≥40 px → role + 🔥, malý → nic), 'evening' (malý v Tabulce večera → jen role),
+ *  'strip' (karty na Statistikách → role + 🔥 + ✨ lídr), 'leader' (Celková tabulka → jen ✨ lídr), 'none'. */
+function av(p, size = 26, cls = '', mode = 'auto') {
   const img = `<img class="av ${cls}" src="${avatarUrl(p)}" alt="" width="${size}" height="${size}" style="--c:${COLORS[p] || '#888'};width:${size}px;height:${size}px" loading="lazy">`;
-  if (size < FX_MIN_SIZE) return img; // malé avatary bez efektů
-  if (p === FX.fire) return `<span class="fx fx-fire" title="Vyhrál minulý večer 🔥">${FIRE_HTML}${img}</span>`;
-  if (p === FX.cooked) return `<span class="fx fx-cooked" title="Minulý večer poslední – upečený 🍳">${PAN_BACK}${img}${PAN_FRONT}${SMOKE_HTML}</span>`;
-  return img;
+  if (mode === 'auto') mode = size >= FX_MIN_SIZE ? 'big' : 'none';
+  if (mode === 'none') return img;
+  const role = mode === 'leader' ? 0 : (FX.role[p] || 0);
+  const fire = (mode === 'big' || mode === 'strip') && FX.fire.has(p);
+  const lead = (mode === 'strip' || mode === 'leader') && FX.leader === p;
+  if (!role && !fire && !lead) return img;
+  const cl = ['fx', role ? `fx-r${role}` : '', fire ? 'fx-fire' : '', lead ? 'fx-lead' : '', size < FX_MIN_SIZE ? 'fx-sm' : ''].filter(Boolean).join(' ');
+  const title = [role ? FX_TITLES[role - 1] : '', fire ? 'série 3+ výher 🔥' : '', lead ? 'lídr celkové tabulky ✨' : ''].filter(Boolean).join(' · ');
+  return `<span class="${cl}" title="${title}">${lead ? LEAD_HTML : ''}${fire ? FIRE_HTML : ''}${role === 4 ? PAN_BACK : ''}${img}`
+    + `${role === 4 ? PAN_FRONT + SMOKE_HTML : ''}${role === 1 ? CROWN_HTML : ''}${role === 2 ? ANGRY_HTML : ''}${role === 3 ? SWEAT_HTML : ''}</span>`;
 }
 
-/* ============ EFEKTY: 🔥 vítěz / 🍳 poslední minulého večera (jen velké avatary) ============ */
-const FX = { fire: null, cooked: null };
+/* ============ EFEKTY: 👑 1. · 😡 2. · 😰 3. · 🍳 4. večera, 🔥 série 3+, ✨ lídr celkové tabulky ============ */
+const FX = { sid: null, role: {}, fire: new Set(), leader: null };
 const FX_MIN_SIZE = 40;
+const FX_STREAK = 3;
+const FX_TITLES = ['1. místo večera 👑', '2. místo – naštvaný 😡', '3. místo – nervózní 😰', 'poslední – upečený 🍳'];
+// 👑 koruna nad hlavou (otáčí se)
+const CROWN_HTML = `<span class="fx-crown" aria-hidden="true"><svg viewBox="0 0 100 72">
+  <path d="M8 60 L3 18 L28 40 L50 5 L72 40 L97 18 L92 60 Z" fill="#ffcf33" stroke="#a87400" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="7" y="55" width="86" height="13" rx="3" fill="#f2b100" stroke="#a87400" stroke-width="3.5"/>
+  <circle cx="50" cy="61.5" r="4.5" fill="#e0245e"/><circle cx="27" cy="61.5" r="3.6" fill="#3987e5"/><circle cx="73" cy="61.5" r="3.6" fill="#22a8a0"/>
+  <circle cx="3" cy="18" r="5" fill="#fff1a6"/><circle cx="50" cy="5" r="5.5" fill="#fff1a6"/><circle cx="97" cy="18" r="5" fill="#fff1a6"/>
+  <path d="M20 46 L30 50" stroke="#fff6cf" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg></span>`;
+// 😡 2. místo: baseballka (máchá), 💢 a zrudnutí
+const ANGRY_HTML = `<span class="fx-flush" aria-hidden="true"></span><span class="fx-bat" aria-hidden="true"><svg viewBox="0 0 20 100">
+  <path d="M8.6 97 L8.1 62 Q6.2 34 3.6 9 Q10 -1 16.4 9 Q13.8 34 11.9 62 L11.4 97 Z" fill="#d39a5c" stroke="#6e4019" stroke-width="1.6"/>
+  <path d="M6 14 Q10 8 14 14" fill="none" stroke="#f0c48e" stroke-width="2" stroke-linecap="round"/>
+  <rect x="7.6" y="74" width="4.8" height="20" rx="1.5" fill="#2b2b33"/><ellipse cx="10" cy="97.5" rx="4.6" ry="2.4" fill="#6e4019"/></svg></span>
+  <span class="fx-anger" aria-hidden="true"><svg viewBox="0 0 40 40"><g fill="none" stroke="#ff3030" stroke-width="5.5" stroke-linecap="round">
+  <path d="M16 3 Q16 16 3 16"/><path d="M24 3 Q24 16 37 16"/><path d="M16 37 Q16 24 3 24"/><path d="M24 37 Q24 24 37 24"/></g></svg></span>`;
+// 😰 3. místo: kapky potu
+const DROP = '<svg viewBox="0 0 20 28"><path d="M10 1 C10 1 2 13 2 19 A8 8 0 0 0 18 19 C18 13 10 1 10 1 Z" fill="#8fd3ff" stroke="#2b7fd0" stroke-width="1.6"/><ellipse cx="7" cy="18" rx="2" ry="3.2" fill="#fff" opacity=".75"/></svg>';
+const SWEAT_HTML = `<span class="fx-sweat" aria-hidden="true"><i style="left:6%;top:14%;animation-delay:0s">${DROP}</i><i style="right:4%;top:20%;animation-delay:-.7s">${DROP}</i><i style="left:20%;top:2%;animation-delay:-1.3s">${DROP}</i></span>`;
+// ✨ lídr celkové tabulky: zlatá svatozář + jiskry
+const SPARK = '<svg viewBox="0 0 20 20"><path d="M10 0 L12 8 L20 10 L12 12 L10 20 L8 12 L0 10 L8 8 Z" fill="#fff3a6"/></svg>';
+const LEAD_HTML = `<span class="fx-halo" aria-hidden="true"></span><span class="fx-sparks" aria-hidden="true"><i style="left:-14%;top:4%;animation-delay:0s">${SPARK}</i><i style="right:-16%;top:30%;animation-delay:-.6s">${SPARK}</i><i style="left:62%;top:-18%;animation-delay:-1.2s">${SPARK}</i></span>`;
 // Plameny: špičaté jazyky po obvodu, naklopené vzhůru (oheň stoupá), nahoře větší, dole jen malé.
 // Vše v % avataru → funguje pro každou velikost.
 const FIRE_HTML = '<span class="fx-glow" aria-hidden="true"></span><span class="fx-flames" aria-hidden="true">' + Array.from({ length: 14 }, (_, i) => {
@@ -155,7 +185,11 @@ function standings(matches) {
     m.team_a.forEach((p) => { if (!st[p]) return; st[p].played++; st[p].points += m.score_a; if (aWon) st[p].wins++; });
     m.team_b.forEach((p) => { if (!st[p]) return; st[p].played++; st[p].points += m.score_b; if (!aWon) st[p].wins++; });
   });
-  return Object.values(st).sort((a, b) => (b.wins - a.wins) || (b.points - a.points) || (PLAYERS.indexOf(a.name) - PLAYERS.indexOf(b.name)));
+  // Pořadí: body (= +/−) → výhry → rating (ELO + bonusy) na začátku večera (u celkové tabulky aktuální rating).
+  const one = matches.length && matches.every((m) => sameId(m.session_id, matches[0].session_id));
+  const tr = (one && state.startTotal && state.startTotal[String(matches[0].session_id)]) || state.total || {};
+  return Object.values(st).sort((a, b) => (b.points - a.points) || (b.wins - a.wins)
+    || ((tr[b.name] || 0) - (tr[a.name] || 0)) || (PLAYERS.indexOf(a.name) - PLAYERS.indexOf(b.name)));
 }
 
 /* ============ ELO ============ */
@@ -190,6 +224,7 @@ function computeElo(all) {
   const bonus = Object.fromEntries(PLAYERS.map((p) => [p, emptyBonus()]));
   const hist = Object.fromEntries(PLAYERS.map((p) => [p, [ELO_START]]));
   const perSession = {}; // změna celkem (zápasy + bonusy) za večer
+  const startTotal = {}; // id večera → rating (ELO + bonusy) před prvním zápasem večera
   const sessionBonus = {}; // id večera → hráč → rozpis bonusů
   const probs = new Map(); // id zápasu → šance týmu A na výhru PŘED zápasem (jen z čistého ELO)
   const streak = Object.fromEntries(PLAYERS.map((p) => [p, 0]));
@@ -210,7 +245,11 @@ function computeElo(all) {
   let curSid = null; let curMs = [];
   all.forEach((m) => {
     if (![...m.team_a, ...m.team_b].every((p) => p in rating)) return;
-    if (!sameId(m.session_id, curSid)) { if (curSid !== null) closeEvening(curSid, curMs); curSid = m.session_id; curMs = []; }
+    if (!sameId(m.session_id, curSid)) {
+      if (curSid !== null) closeEvening(curSid, curMs);
+      curSid = m.session_id; curMs = [];
+      startTotal[String(curSid)] = Object.fromEntries(PLAYERS.map((p) => [p, tot(p)]));
+    }
     curMs.push(m);
     const sid = m.session_id;
     perSession[sid] ||= Object.fromEntries(PLAYERS.map((p) => [p, 0]));
@@ -231,7 +270,7 @@ function computeElo(all) {
   if (curSid !== null) closeEvening(curSid, curMs);
   const total = Object.fromEntries(PLAYERS.map((p) => [p, tot(p)]));
   const ranked = [...PLAYERS].sort((a, b) => total[b] - total[a]);
-  return { rating, total, bonus, hist, perSession, sessionBonus, ranked, probs };
+  return { rating, total, bonus, hist, perSession, sessionBonus, ranked, probs, startTotal };
 }
 /** Šance týmu A porazit tým B podle ELO (tým = průměr hráčů). */
 function winProb(rating, teamA, teamB) {
@@ -274,18 +313,18 @@ function upDown(x) { return x > 0.05 ? 'up' : x < -0.05 ? 'down' : ''; }
 function pctPair(pa) { const a = Math.round(pa * 100); return [a, 100 - a]; }
 
 /* ============ HTML STAVEBNÍ BLOKY ============ */
-function standingsTable(rows, { clickable = false, elo = null } = {}) {
+function standingsTable(rows, { clickable = false, elo = null, fx = 'none' } = {}) {
   const any = rows.some((r) => r.played > 0);
-  let html = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">Výhry</th><th>Body</th>${elo ? '<th>ELO</th>' : ''}</tr></thead><tbody>`;
+  let html = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">Body</th><th>Výhry</th>${elo ? '<th>ELO</th>' : ''}</tr></thead><tbody>`;
   rows.forEach((r, i) => {
     const rank = i + 1;
     const cls = any && rank <= 3 ? `r${rank}` : '';
     html += `<tr class="${any && rank === 1 ? 'lead' : ''} ${clickable ? 'tap' : ''}" ${clickable ? `data-player="${SLUG[r.name]}"` : ''}>
       <td><span class="rank ${cls}">${rank}</span></td>
-      <td class="name">${av(r.name)}${r.name}</td>
+      <td class="name">${av(r.name, 26, '', fx)}${r.name}</td>
       <td class="dim">${r.played}</td>
-      <td class="w">${r.wins}</td>
-      <td class="p">${r.points}</td>
+      <td class="w">${r.points}</td>
+      <td class="p">${r.wins}</td>
       ${elo ? `<td class="delta ${elo[r.name] >= 0 ? 'up' : 'down'}">${signed(elo[r.name])}</td>` : ''}</tr>`;
   });
   return html + '</tbody>';
@@ -410,15 +449,37 @@ function rebuildState() {
   const elo = computeElo(chronoMatches().filter((m) => !m._failed));
   state.probs = elo.probs;
   state.rating = elo.rating;
+  state.total = elo.total;
+  state.startTotal = elo.startTotal;
   updateFx();
 }
-/** Vítěz posledního UKONČENÉHO večera hoří 🔥, poslední z něj je upečený 🍳 (drží se do ukončení dalšího večera). */
+/** Role pro animace:
+ *  pořadí aktuálního večera (od 1. zapsaného zápasu), jinak posledního odehraného → 👑 1. · 😡 2. · 😰 3. · 🍳 4.
+ *  🔥 = aktuální série 3+ výher v řadě (trvá do prohry, i přes týden) · ✨ = lídr celkové tabulky (podle bodů). */
 function updateFx() {
-  const fin = state.sessions.filter((s) => s.finished && matchesOf(s.id).length)
-    .sort((a, b) => a.played_on.localeCompare(b.played_on) || byCreated(a, b)).pop();
-  const st = fin ? standings(matchesOf(fin.id)) : null;
-  FX.fire = st ? st[0].name : null;
-  FX.cooked = st ? st[st.length - 1].name : null;
+  const ok = (m) => !m._failed;
+  const open = openSession();
+  let cur = open && matchesOf(open.id).some(ok) ? open : null;
+  if (!cur) {
+    cur = state.sessions.filter((s) => s.finished && matchesOf(s.id).some(ok))
+      .sort((a, b) => a.played_on.localeCompare(b.played_on) || byCreated(a, b)).pop() || null;
+  }
+  FX.sid = cur ? String(cur.id) : null;
+  FX.role = {};
+  if (cur) standings(matchesOf(cur.id).filter(ok)).forEach((r, i) => { FX.role[r.name] = i + 1; });
+  const chrono = chronoMatches().filter(ok);
+  FX.fire = new Set(PLAYERS.filter((p) => {
+    let n = 0;
+    for (let i = chrono.length - 1; i >= 0; i--) {
+      const m = chrono[i];
+      const inA = m.team_a.includes(p); const inB = m.team_b.includes(p);
+      if (!inA && !inB) continue;
+      if ((inA && m.score_a > m.score_b) || (inB && m.score_b > m.score_a)) n++; else break;
+    }
+    return n >= FX_STREAK;
+  }));
+  const done = chrono.filter((m) => !m._pending);
+  FX.leader = done.length ? standings(done)[0].name : null;
 }
 function saveOutbox() { lsSet(OUTBOX_KEY, outbox); }
 function saveCache() { lsSet(CACHE_KEY, { sessions: server.sessions, matches: server.matches, savedAt: Date.now() }); }
@@ -600,7 +661,7 @@ function renderPlay() {
     el.liveBadge.classList.add('hidden');
   }
   renderOutboxBanner();
-  el.tonightTable.innerHTML = standingsTable(standings(ms));
+  el.tonightTable.innerHTML = standingsTable(standings(ms), { fx: 'evening' });
   el.matchNo.textContent = no;
   el.rotationLabel.textContent = `Kombinace ${rotIdx + 1}/3`;
   const names = (t) => `<div class="team-avs">${av(t[0], 46)}${av(t[1], 46)}</div>${t[0]}<span class="amp">&</span>${t[1]}`;
@@ -752,9 +813,9 @@ async function finishSession() {
 
 function showFinishedModal(sid) {
   const st = standings(matchesOf(sid));
-  openModal(`<div class="finish-hero">${av(st[0].name, 96, 'big')}<div class="crown">👑</div></div>
+  openModal(`<div class="finish-hero">${av(st[0].name, 96, 'big')}</div>
     <h3 class="center">Večer vyhrál ${st[0].name}!</h3>
-    <p class="center">${st[0].wins} výher · ${st[0].points} bodů</p>
+    <p class="center">${st[0].points} bodů · ${st[0].wins} výher</p>
     <button class="btn pri wide" id="fShare">📤 Sdílet výsledky do skupiny</button>
     <button class="btn sec wide mt" id="fClose">Zavřít</button>`, (c) => {
     c.querySelector('#fShare').onclick = () => { closeModal(); openSharePreview(sid); };
@@ -829,7 +890,7 @@ function renderHistory() {
         <div class="s-meta">${nZap(ms.length)} · ${ms.length * TOTAL} míčků</div></div>
         ${!s.finished ? '<span class="s-open">LIVE</span>' : ''}
       </div>
-      ${ms.length ? `<div class="podium">${st.map((r, i) => `<div class="${i === 0 ? 'first' : ''}">${av(r.name, 34)}<div class="nm">${r.name}</div><div class="vl">${r.wins} V · ${r.points}</div></div>`).join('')}</div>` : ''}
+      ${ms.length ? `<div class="podium">${st.map((r, i) => `<div class="${i === 0 ? 'first' : ''}">${av(r.name, 34)}<div class="nm">${r.name}</div><div class="vl">${r.points} b · ${r.wins} V</div></div>`).join('')}</div>` : ''}
     </button>`;
   }).join('');
 }
@@ -851,7 +912,7 @@ function renderSessionSheet() {
   const canReopen = s.finished && !openSession();
   el.sheetBody.innerHTML = `
     <div class="card"><div class="card-title"><span>Tabulka večera</span><span class="muted small">klepni na hráče</span></div>
-      <table class="standings">${standingsTable(st, { clickable: true, elo: deltas })}</table>
+      <table class="standings">${standingsTable(st, { clickable: true, elo: deltas, fx: sameId(s.id, FX.sid) ? 'evening' : 'none' })}</table>
       <p class="muted small ff-note">ELO = změna ze zápasů + bonusy večera.</p></div>
     ${bonusCard}
     ${ms.length ? '<button type="button" class="btn-share" id="shareBtn">📤 Sdílet výsledky do Messengeru</button>' : ''}
@@ -924,7 +985,7 @@ function renderStats() {
   ].map(([v, l, acc]) => `<div class="kpi ${acc ? 'accent' : ''}"><div class="kpi-val">${v.toLocaleString('cs-CZ')}</div><div class="kpi-lbl">${l}</div></div>`).join('');
 
   el.playerStrip.innerHTML = elo.ranked.map((p) => `<button type="button" class="pcard" data-player="${SLUG[p]}">
-      ${av(p, 56)}<div class="pc-name">${p}</div><div class="pc-elo">${Math.round(elo.total[p])}</div></button>`).join('');
+      ${av(p, 56, '', 'strip')}<div class="pc-name">${p}</div><div class="pc-elo">${Math.round(elo.total[p])}</div></button>`).join('');
 
   if (!all.length) {
     el.overallTable.innerHTML = '<tbody><tr><td class="empty">Zatím žádná data.</td></tr></tbody>';
@@ -934,14 +995,14 @@ function renderStats() {
 
   // Celková tabulka (ELO jako číslo pod jménem)
   const any = overall.some((r) => r.played);
-  el.overallTable.innerHTML = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">V</th><th>%</th><th>Body</th><th>Ø</th><th title="Vyhrané večery">👑</th></tr></thead><tbody>` +
+  el.overallTable.innerHTML = `<thead><tr><th>#</th><th>Hráč</th><th>Z</th><th style="color:var(--win)">Body</th><th title="Míčky získané − ztracené">+/−</th><th>V</th><th>Ø</th><th title="Vyhrané večery">👑</th></tr></thead><tbody>` +
     overall.map((r, i) => `<tr class="tap ${any && i === 0 ? 'lead' : ''}" data-player="${SLUG[r.name]}">
       <td><span class="rank ${any && i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span></td>
-      <td class="name">${av(r.name, 24)}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.total[r.name])}</small></span></td>
+      <td class="name">${av(r.name, 24, '', 'leader')}<span class="nm-elo">${r.name}<small>ELO ${Math.round(elo.total[r.name])}</small></span></td>
       <td class="dim">${r.played}</td>
-      <td class="w">${r.wins}</td>
-      <td class="dim">${pct(r.wins, r.played)}</td>
-      <td class="p">${r.points}</td>
+      <td class="w">${r.points}</td>
+      <td class="pm ${2 * r.points - TOTAL * r.played >= 0 ? 'up' : 'down'}">${signed(2 * r.points - TOTAL * r.played)}</td>
+      <td class="p">${r.wins}</td>
       <td class="dim">${r.played ? dec(r.points / r.played) : '–'}</td>
       <td class="p">${nightsWon[r.name]}</td></tr>`).join('') + '</tbody>';
 
@@ -1382,12 +1443,12 @@ function drawShareImage(sid) {
   ctx.save(); ctx.translate(W / 2 + 108, 312); ctx.rotate(0.35); ctx.font = '84px sans-serif'; ctx.fillText('👑', 0, 0); ctx.restore();
   ctx.fillStyle = '#fff'; ctx.font = `italic 900 104px ${BC}`; ctx.fillText(win.name.toUpperCase(), W / 2, 640);
   ctx.fillStyle = '#cfdcec'; ctx.font = '600 32px Inter, sans-serif';
-  ctx.fillText(`${win.wins} výher · ${win.points} bodů · ELO ${Math.round(elo.total[win.name])} (${signed(deltas[win.name] || 0)})`, W / 2, 690);
+  ctx.fillText(`${win.points} bodů · ${win.wins} výher · ELO ${Math.round(elo.total[win.name])} (${signed(deltas[win.name] || 0)})`, W / 2, 690);
 
   // tabulka
   const colV = 700; const colB = 850; const colE = 1005;
   ctx.font = '700 22px Inter, sans-serif'; ctx.fillStyle = '#6f86a3'; ctx.textAlign = 'right';
-  ctx.fillText('VÝHRY', colV, 752); ctx.fillText('BODY', colB, 752); ctx.fillText('ELO', colE, 752);
+  ctx.fillText('BODY', colV, 752); ctx.fillText('VÝHRY', colB, 752); ctx.fillText('ELO', colE, 752);
   const rankBg = [LIME, 'rgba(143,196,255,.25)', 'rgba(245,177,61,.25)', 'rgba(255,255,255,.08)'];
   const rankFg = ['#0b1a30', '#bfe0ff', '#f5b13d', '#a9bbd2'];
   st.forEach((r, i) => {
@@ -1398,8 +1459,8 @@ function drawShareImage(sid) {
     drawAvatar(ctx, r.name, 196, y + 45, 32, 4);
     ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '800 40px Inter, sans-serif'; ctx.fillText(r.name, 244, y + 47);
     ctx.textAlign = 'right';
-    ctx.fillStyle = LIME; ctx.font = `italic 900 54px ${BC}`; ctx.fillText(String(r.wins), colV, y + 47);
-    ctx.fillStyle = '#fff'; ctx.font = `800 48px ${BC}`; ctx.fillText(String(r.points), colB, y + 47);
+    ctx.fillStyle = LIME; ctx.font = `italic 900 54px ${BC}`; ctx.fillText(String(r.points), colV, y + 47);
+    ctx.fillStyle = '#fff'; ctx.font = `800 48px ${BC}`; ctx.fillText(String(r.wins), colB, y + 47);
     const d = deltas[r.name] || 0;
     ctx.fillStyle = d >= 0 ? LIME : '#ff9aa2'; ctx.font = '700 30px Inter, sans-serif'; ctx.fillText(signed(d), colE, y + 47);
     ctx.textBaseline = 'alphabetic';
@@ -1423,7 +1484,7 @@ function shareText(sid) {
   const st = standings(matchesOf(sid).filter((m) => !m._pending));
   const medal = ['🏆', '🥈', '🥉', '4.'];
   return `🎾 HotPadel – ${fmtLong(s.played_on)}\n` +
-    st.map((r, i) => `${medal[i]} ${r.name} – ${r.wins} V, ${r.points} b`).join('\n') +
+    st.map((r, i) => `${medal[i]} ${r.name} – ${r.points} b, ${r.wins} V`).join('\n') +
     `\n${SITE_URL}#vecer-${sid}`;
 }
 function dataUrlToFile(dataUrl, name) {
