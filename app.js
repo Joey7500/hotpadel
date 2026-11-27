@@ -984,7 +984,7 @@ function renderStats() {
     [close, 'těsných 11:10'],
   ].map(([v, l, acc]) => `<div class="kpi ${acc ? 'accent' : ''}"><div class="kpi-val">${v.toLocaleString('cs-CZ')}</div><div class="kpi-lbl">${l}</div></div>`).join('');
 
-  el.playerStrip.innerHTML = elo.ranked.map((p) => `<button type="button" class="pcard" data-player="${SLUG[p]}">
+  el.playerStrip.innerHTML = overall.map((r) => r.name).map((p) => `<button type="button" class="pcard" data-player="${SLUG[p]}">
       ${av(p, 56, '', 'strip')}<div class="pc-name">${p}</div><div class="pc-elo">${Math.round(elo.total[p])}</div></button>`).join('');
 
   if (!all.length) {
